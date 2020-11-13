@@ -11,7 +11,7 @@ pub struct Game;
 impl Plugin for Game {
     fn build(&self, app: &mut AppBuilder){
         app.add_plugins(DefaultPlugins)
-            //.add_plugin(FPSPlugin)
+            .add_plugin(FPSPlugin { color: Color::BLACK })
             .add_resource(GreetTimer(Timer::from_seconds(2.0,true)))
             .add_resource(Grid::new(10, 20))
             .init_resource::<GridRenderDebug>()
@@ -216,8 +216,6 @@ impl Grid {
         return 0;
     }
 }
-
-
 
 fn add_people(mut commands: Commands) {
     commands
