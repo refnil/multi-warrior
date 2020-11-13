@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::texture::*;
 use bevy::render::camera::*;
 use bevy::ecs::*;
 use rand::random;
@@ -12,7 +11,6 @@ impl Plugin for Game {
     fn build(&self, app: &mut AppBuilder){
         app.add_plugins(DefaultPlugins)
             .add_plugin(FPSPlugin { color: Color::BLACK })
-            .add_resource(GreetTimer(Timer::from_seconds(2.0,true)))
             .add_resource(Grid::new(10, 20))
             .init_resource::<GridRenderDebug>()
             .add_startup_system(init_cameras.system())
@@ -24,30 +22,25 @@ impl Plugin for Game {
     }
 }
 
-fn hello_world() {
-    println!("hello world!");
-}
-
-struct Person;
-struct Name(String);
-struct GreetTimer(Timer);
 struct GridRenderDebug {
-    nothingColor: Handle<ColorMaterial>,
-    friendColor: Handle<ColorMaterial>,
-    enemyColor: Handle<ColorMaterial>,
+    nothing_color: Handle<ColorMaterial>,
+    friend_color: Handle<ColorMaterial>,
+    enemy_color: Handle<ColorMaterial>,
     visible: bool
 }
+
 struct GridRenderDebugNode {
     x: i32,
     y: i32
 }
+
 impl FromResources for GridRenderDebug {
     fn from_resources(res: &Resources) -> Self {
         let mut materials = res.get_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
-            nothingColor: materials.add(Color::rgb(1.0,1.0,1.0).into()),
-            friendColor: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
-            enemyColor: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
+            nothing_color: materials.add(Color::rgb(1.0,1.0,1.0).into()),
+            friend_color: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
+            enemy_color: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
             visible: true
         }
     }
@@ -65,8 +58,7 @@ fn init_cameras(mut commands: Commands){
 }
 
 fn init_render_grid(mut commands: Commands, 
-                    grid: Res<Grid>, 
-                    gridRender: ResMut<GridRenderDebug>) {
+                    grid: Res<Grid>) {
     for x in 0..grid.x {
         for y in 0..grid.y {
             commands.spawn(SpriteComponents {
@@ -89,17 +81,14 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
 fn draw_grid(mut commands: Commands, grid: Res<Grid>){
 }
 
-fn draw_grid_debug(gridDebug: Res<GridRenderDebug>, grid: Res<Grid>, mut debug_query: Query<(&GridRenderDebugNode, &mut Transform, &mut Handle<ColorMaterial>)>, query_proj: Query<&OrthographicProjection>) {
+fn draw_grid_debug(grid_debug: Res<GridRenderDebug>, grid: Res<Grid>, mut debug_query: Query<(&GridRenderDebugNode, &mut Transform, &mut Handle<ColorMaterial>)>, query_proj: Query<&OrthographicProjection>) {
     coz::scope!("draw_grid_debug");
     if let Some(proj) = query_proj.iter().next() {
         // Put the debug node at the right place in the camera
         let width = (proj.right - proj.left)/ grid.x as f32;
         let height = (proj.top - proj.bottom)/ grid.y as f32;
 
-        let mut count = 0;
-        let mut iterator = debug_query.iter_mut();
-
-        for (node, mut transform, mut material) in iterator {
+        for (node, mut transform, mut material) in debug_query.iter_mut() {
 
             let nodex = node.x as f32;
             let nodey = node.y as f32;
@@ -111,11 +100,10 @@ fn draw_grid_debug(gridDebug: Res<GridRenderDebug>, grid: Res<Grid>, mut debug_q
 
             let status = grid.get_status(node.x, node.y);
             *material = match status {
-                GridStatus::Neutral => gridDebug.nothingColor.clone(),
-                GridStatus::Friend => gridDebug.friendColor.clone(),
-                GridStatus::Enemy => gridDebug.enemyColor.clone()
+                GridStatus::Neutral => grid_debug.nothing_color.clone(),
+                GridStatus::Friend => grid_debug.friend_color.clone(),
+                GridStatus::Enemy => grid_debug.enemy_color.clone()
             };
-            count += 1;
         }
     }
 }
@@ -135,12 +123,12 @@ fn change_grid_randomly(mut grid: ResMut<Grid>){
 
 }
 
-fn count_query<Q: HecsQuery>(mut query: Query<Q>){
+fn _count_query<Q: HecsQuery>(mut query: Query<Q>){
     println!("{}", query.iter_mut().count());
 }
 
 struct Grid {
-    peopleByCase: Vec<i32>,
+    people_by_case: Vec<i32>,
     pub x: i32,
     pub y: i32,
 }
@@ -154,7 +142,7 @@ enum GridStatus {
 impl Grid {
     pub fn new(x: i32, y: i32) -> Grid {
         Grid {
-            peopleByCase: vec![0; (x * y) as usize],
+            people_by_case: vec![0; (x * y) as usize],
             x: x,
             y: y
         }
@@ -171,8 +159,8 @@ impl Grid {
 
     pub fn add_friend(self: &mut Grid, x: i32, y: i32) -> bool {
         if let Some(pos) = self.to_pos(x, y) {
-            if self.peopleByCase[pos] >= 0 {
-                self.peopleByCase[pos] += 1;
+            if self.people_by_case[pos] >= 0 {
+                self.people_by_case[pos] += 1;
                 return true;
             }
         }        
@@ -181,8 +169,8 @@ impl Grid {
 
     pub fn add_enemy(self: &mut Grid, x: i32, y: i32) -> bool {
         if let Some(pos) = self.to_pos(x, y) {
-            if self.peopleByCase[pos] <= 0 {
-                self.peopleByCase[pos] -= 1;
+            if self.people_by_case[pos] <= 0 {
+                self.people_by_case[pos] -= 1;
                 return true;
             }
         }        
@@ -191,7 +179,7 @@ impl Grid {
 
     pub fn change_by_count(self: &mut Grid, x: i32, y: i32, change: i32){
         if let Some(pos) = self.to_pos(x, y) {
-            self.peopleByCase[pos] += change;
+            self.people_by_case[pos] += change;
         }        
     }
 
@@ -211,24 +199,8 @@ impl Grid {
 
     pub fn get_count(self: &Grid, x: i32, y: i32) -> i32 {
         if let Some(pos) = self.to_pos(x, y) {
-            return self.peopleByCase[pos]
+            return self.people_by_case[pos]
         }        
         return 0;
-    }
-}
-
-fn add_people(mut commands: Commands) {
-    commands
-        .spawn((Person, Name("Elaina Proctor".to_string())))
-        .spawn((Person, Name("Chloe".to_string())))
-        .spawn((Person, Name("Melodie".to_string())));
-}
-
-fn greet_people2(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<(&Person, &Name)>) {
-    timer.0.tick(time.delta_seconds);
-    if timer.0.finished {
-        for (_person, name) in query.iter() {
-            println!("hello {}!", name.0)
-        }
     }
 }
