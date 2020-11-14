@@ -1,10 +1,10 @@
 use bevy::prelude::*;
-use bevy::ecs::*;
 use rand::random;
 
 use crate::fps::FPSPlugin;
 use crate::grid::*;
 use crate::unit::*;
+use crate::utils::*;
 
 pub struct Game;
 
@@ -13,6 +13,7 @@ impl Plugin for Game {
         app.add_plugins(DefaultPlugins)
             .add_plugin(FPSPlugin { color: Color::BLACK })
             .add_plugin(UnitPlugin::default())
+            .add_plugin(GridPlugin::default())
             .add_resource(Grid::new(3, 5))
             .add_startup_system(init_cameras.system())
             .add_startup_system(add_some_friend_and_enemy.system())
@@ -20,12 +21,7 @@ impl Plugin for Game {
 
             .add_system(change_grid_randomly.system())
 
-            /*
-            .add_system(_count_query::<(&Handle<TextureAtlas>,)>.system())
-            .add_system(_count_query::<(&TextureAtlasSprite,)>.system())
-            .add_system(_count_query::<(&Draw,)>.system())
-            .add_system(_count_query::<(&UnitInfo,)>.system())
-            */
+            .add_system(count_query::<(&TextureAtlasSprite,)>.system())
         ;
     }
 }
@@ -83,6 +79,3 @@ fn change_grid_randomly(mut grid: ResMut<Grid>){
 
 }
 
-fn _count_query<Q: HecsQuery>(mut query: Query<Q>){
-    println!("{}", query.iter_mut().count());
-}
