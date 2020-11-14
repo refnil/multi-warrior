@@ -16,7 +16,6 @@ impl Plugin for Game {
             .add_startup_system(init_cameras.system())
             .add_startup_system(init_render_grid.system())
             .add_startup_system(add_some_friend_and_enemy.system())
-            .add_system(draw_grid.system())
             .add_system(change_grid_randomly.system())
 
             .add_system(update_grid_debug_visible.system())
@@ -66,9 +65,6 @@ impl FromResources for GridRenderDebug {
     }
 }
 
-struct Skill {
-}
-
 struct MainCamera;
 struct UICamera;
 
@@ -102,10 +98,6 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
     grid.add_enemy(x, y);
 }
 
-
-fn draw_grid(mut commands: Commands, grid: Res<Grid>){
-}
-
 fn update_grid_debug_visible(input: Res<Input<KeyCode>>, mut info: ResMut<GridRenderDebug>) {
     if input.just_pressed(KeyCode::G) {
         info.visible = !info.visible;
@@ -113,7 +105,7 @@ fn update_grid_debug_visible(input: Res<Input<KeyCode>>, mut info: ResMut<GridRe
     }
 }
 
-fn update_grid_render_debug(grid: Res<Grid>, mut info: ResMut<GridRenderDebug>, mainCamera: &MainCamera, proj: &OrthographicProjection){
+fn update_grid_render_debug(grid: Res<Grid>, mut info: ResMut<GridRenderDebug>, _main_camera: &MainCamera, proj: &OrthographicProjection){
     info.left = proj.left;
     info.right = proj.right;
     info.top = proj.top;
