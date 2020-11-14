@@ -11,14 +11,17 @@ impl Plugin for Game {
     fn build(&self, app: &mut AppBuilder){
         app.add_plugins(DefaultPlugins)
             .add_plugin(FPSPlugin { color: Color::BLACK })
-            .add_resource(Grid::new(10, 20))
+            .add_resource(Grid::new(3, 5))
             .init_resource::<GridRenderDebug>()
             .add_startup_system(init_cameras.system())
             .add_startup_system(init_render_grid.system())
             .add_startup_system(add_some_friend_and_enemy.system())
             .add_system(draw_grid.system())
-            .add_system(draw_grid_debug.system())
-            .add_system(change_grid_randomly.system());
+            .add_system(change_grid_randomly.system())
+
+            .add_system(update_grid_render_debug.system()) 
+            .add_system(update_grid_transform.system()) 
+            .add_system(update_grid_color.system()) ;
     }
 }
 
@@ -26,7 +29,15 @@ struct GridRenderDebug {
     nothing_color: Handle<ColorMaterial>,
     friend_color: Handle<ColorMaterial>,
     enemy_color: Handle<ColorMaterial>,
-    visible: bool
+    visible: bool,
+
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
+
+    width: f32,
+    height: f32
 }
 
 struct GridRenderDebugNode {
@@ -41,7 +52,15 @@ impl FromResources for GridRenderDebug {
             nothing_color: materials.add(Color::rgb(1.0,1.0,1.0).into()),
             friend_color: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
             enemy_color: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-            visible: true
+            visible: true,
+
+            left:0.0,
+            right:0.0,
+            top:0.0,
+            bottom:0.0,
+
+            width: 0.0,
+            height: 0.0
         }
     }
 }
@@ -49,11 +68,16 @@ impl FromResources for GridRenderDebug {
 struct Skill {
 }
 
+struct MainCamera;
+struct UICamera;
+
 fn init_cameras(mut commands: Commands){
     // 2d camera
     commands.spawn(Camera2dComponents::default());
+    commands.with(MainCamera);
     // UI camera
     commands.spawn(UiCameraComponents::default());
+    commands.with(UICamera);
     // Maybe they should have another component each to differenciate them
 }
 
@@ -81,30 +105,36 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
 fn draw_grid(mut commands: Commands, grid: Res<Grid>){
 }
 
-fn draw_grid_debug(grid_debug: Res<GridRenderDebug>, grid: Res<Grid>, mut debug_query: Query<(&GridRenderDebugNode, &mut Transform, &mut Handle<ColorMaterial>)>, query_proj: Query<&OrthographicProjection>) {
-    coz::scope!("draw_grid_debug");
-    if let Some(proj) = query_proj.iter().next() {
-        // Put the debug node at the right place in the camera
-        let width = (proj.right - proj.left)/ grid.x as f32;
-        let height = (proj.top - proj.bottom)/ grid.y as f32;
+fn update_grid_render_debug(grid: Res<Grid>, mut info: ResMut<GridRenderDebug>, mainCamera: &MainCamera, proj: &OrthographicProjection){
+    info.left = proj.left;
+    info.right = proj.right;
+    info.top = proj.top;
+    info.bottom = proj.bottom;
 
-        for (node, mut transform, mut material) in debug_query.iter_mut() {
+    info.width = (info.right - info.left)/ grid.x as f32;
+    info.height = (info.top - info.bottom)/ grid.y as f32;
+}
 
-            let nodex = node.x as f32;
-            let nodey = node.y as f32;
-            let startx = proj.left + width * nodex + width * 0.5;
-            let starty = proj.bottom + height * nodey + height * 0.5;
+fn update_grid_transform(info: Res<GridRenderDebug>, node: &GridRenderDebugNode, mut transform: Mut<Transform>) {
+    let nodex = node.x as f32;
+    let nodey = node.y as f32;
+    let startx = info.left + info.width * (nodex + 0.5);
+    let starty = info.bottom + info.height * (nodey + 0.5);
 
-            transform.translation = Vec3::new(startx, starty, 0.0);
-            transform.scale = Vec3::new(width, height, 1.0);
+    transform.translation = Vec3::new(startx, starty, 0.0);
+    transform.scale = Vec3::new(info.width, info.height, 1.0);
+}
 
-            let status = grid.get_status(node.x, node.y);
-            *material = match status {
-                GridStatus::Neutral => grid_debug.nothing_color.clone(),
-                GridStatus::Friend => grid_debug.friend_color.clone(),
-                GridStatus::Enemy => grid_debug.enemy_color.clone()
-            };
-        }
+fn update_grid_color(grid: Res<Grid>, grid_debug: Res<GridRenderDebug>, node: &GridRenderDebugNode, mut material: Mut<Handle<ColorMaterial>>){
+    let status = grid.get_status(node.x, node.y);
+    let target_material = match status {
+        GridStatus::Neutral => &grid_debug.nothing_color,
+        GridStatus::Friend => &grid_debug.friend_color,
+        GridStatus::Enemy => &grid_debug.enemy_color
+    };
+
+    if *material != *target_material {
+        *material = target_material.clone();
     }
 }
 
@@ -115,7 +145,6 @@ fn change_grid_randomly(mut grid: ResMut<Grid>){
 
     let random_x = (random::<u16>() % max_x) as i32;
     let random_y = (random::<u16>() % max_y) as i32;
-
 
     let random_change = (random::<u16>() % 3) as i32 - 1;
 
