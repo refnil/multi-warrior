@@ -19,6 +19,7 @@ impl Plugin for Game {
             .add_system(draw_grid.system())
             .add_system(change_grid_randomly.system())
 
+            .add_system(update_grid_debug_visible.system())
             .add_system(update_grid_render_debug.system()) 
             .add_system(update_grid_transform.system()) 
             .add_system(update_grid_color.system()) ;
@@ -105,6 +106,13 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
 fn draw_grid(mut commands: Commands, grid: Res<Grid>){
 }
 
+fn update_grid_debug_visible(input: Res<Input<KeyCode>>, mut info: ResMut<GridRenderDebug>) {
+    if input.just_pressed(KeyCode::G) {
+        info.visible = !info.visible;
+        println!("visible {}", info.visible);
+    }
+}
+
 fn update_grid_render_debug(grid: Res<Grid>, mut info: ResMut<GridRenderDebug>, mainCamera: &MainCamera, proj: &OrthographicProjection){
     info.left = proj.left;
     info.right = proj.right;
@@ -125,7 +133,7 @@ fn update_grid_transform(info: Res<GridRenderDebug>, node: &GridRenderDebugNode,
     transform.scale = Vec3::new(info.width, info.height, 1.0);
 }
 
-fn update_grid_color(grid: Res<Grid>, grid_debug: Res<GridRenderDebug>, node: &GridRenderDebugNode, mut material: Mut<Handle<ColorMaterial>>){
+fn update_grid_color(grid: Res<Grid>, grid_debug: Res<GridRenderDebug>, node: &GridRenderDebugNode, mut material: Mut<Handle<ColorMaterial>>, mut draw: Mut<Draw>){
     let status = grid.get_status(node.x, node.y);
     let target_material = match status {
         GridStatus::Neutral => &grid_debug.nothing_color,
@@ -136,6 +144,8 @@ fn update_grid_color(grid: Res<Grid>, grid_debug: Res<GridRenderDebug>, node: &G
     if *material != *target_material {
         *material = target_material.clone();
     }
+
+    draw.is_visible = grid_debug.visible;
 }
 
 fn change_grid_randomly(mut grid: ResMut<Grid>){
