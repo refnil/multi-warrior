@@ -1,7 +1,4 @@
 use bevy::prelude::*;
-use bevy::ecs::Bundle;
-
-use crate::game::*;
 
 #[derive(Default)]
 pub struct UnitPlugin;
@@ -9,13 +6,16 @@ pub struct UnitPlugin;
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut AppBuilder){
         app.add_resource(AnimTimer { timer: Timer::from_seconds(0.1, true) })
-           .add_system(move_unit_system.system())
-           .add_system(animate_sprite_system.system());
+           //.add_system(move_unit_system.system())
+           .add_system(animate_sprite_system.system())
+        ;
     }
 }
 
+/*
 fn move_unit_system(grid: ResMut<Grid>, grid_info: Res<GridRenderDebug>, transform: Mut<Transform>, unit_info: Mut<UnitInfo>) {
 }
+*/
 
 fn animate_sprite_system(
     time: Res<Time>,
@@ -39,7 +39,7 @@ pub struct UnitComponents {
 }
 
 impl UnitComponents {
-    pub fn build(self, mut commands: &mut Commands) {
+    pub fn build(self, commands: &mut Commands) {
         commands.spawn(self.spritesheet)
             .with(self.unit_info);
     }
