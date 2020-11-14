@@ -6,7 +6,16 @@ nixGL ? import sources.nixGL { inherit pkgs; }
 }:
 let 
   nightly-rust = pkgs.latest.rustChannels.nightly;
-  rust = nightly-rust.rust;
+  rust = nightly-rust.rust.override {
+    extensions = [
+      "rust-src"
+      "rls-preview"
+      "clippy-preview"
+      "rustfmt-preview"
+      "rust-analysis"
+      "rls-preview"
+    ];
+  };
 
   wrap = name: pkg: pkgs.stdenv.mkDerivation {
     name = "steam-run-${name}";
