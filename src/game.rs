@@ -4,6 +4,7 @@ use bevy::ecs::*;
 use rand::random;
 
 use crate::fps::FPSPlugin;
+use crate::unit::*;
 
 pub struct Game;
 
@@ -11,21 +12,32 @@ impl Plugin for Game {
     fn build(&self, app: &mut AppBuilder){
         app.add_plugins(DefaultPlugins)
             .add_plugin(FPSPlugin { color: Color::BLACK })
+            .add_plugin(UnitPlugin::default())
             .add_resource(Grid::new(3, 5))
             .init_resource::<GridRenderDebug>()
             .add_startup_system(init_cameras.system())
             .add_startup_system(init_render_grid.system())
             .add_startup_system(add_some_friend_and_enemy.system())
+            .add_startup_system(spawn_unit.system())
+
             .add_system(change_grid_randomly.system())
 
             .add_system(update_grid_debug_visible.system())
             .add_system(update_grid_render_debug.system()) 
             .add_system(update_grid_transform.system()) 
-            .add_system(update_grid_color.system()) ;
+            .add_system(update_grid_color.system())
+
+            /*
+            .add_system(_count_query::<(&Handle<TextureAtlas>,)>.system())
+            .add_system(_count_query::<(&TextureAtlasSprite,)>.system())
+            .add_system(_count_query::<(&Draw,)>.system())
+            .add_system(_count_query::<(&UnitInfo,)>.system())
+            */
+        ;
     }
 }
 
-struct GridRenderDebug {
+pub struct GridRenderDebug {
     nothing_color: Handle<ColorMaterial>,
     friend_color: Handle<ColorMaterial>,
     enemy_color: Handle<ColorMaterial>,
@@ -52,7 +64,7 @@ impl FromResources for GridRenderDebug {
             nothing_color: materials.add(Color::rgb(1.0,1.0,1.0).into()),
             friend_color: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
             enemy_color: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-            visible: true,
+            visible: false,
 
             left:0.0,
             right:0.0,
@@ -76,6 +88,24 @@ fn init_cameras(mut commands: Commands){
     commands.spawn(UiCameraComponents::default());
     commands.with(UICamera);
     // Maybe they should have another component each to differenciate them
+}
+
+fn spawn_unit(mut commands: Commands, asset_server: Res<AssetServer>, mut texture_atlases: ResMut<Assets<TextureAtlas>>){
+    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    UnitComponents {
+        spritesheet: SpriteSheetComponents {
+            texture_atlas: texture_atlas_handle,
+            transform: Transform::from_scale(Vec3::splat(6.0)),
+            ..Default::default()
+        },
+        unit_info: UnitInfo {
+            last_x: 1,
+            last_y: 1,
+            ..Default::default()
+        },
+    }.build(&mut commands);
 }
 
 fn init_render_grid(mut commands: Commands, 
@@ -158,7 +188,7 @@ fn _count_query<Q: HecsQuery>(mut query: Query<Q>){
     println!("{}", query.iter_mut().count());
 }
 
-struct Grid {
+pub struct Grid {
     people_by_case: Vec<i32>,
     pub x: i32,
     pub y: i32,

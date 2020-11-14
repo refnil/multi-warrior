@@ -39,6 +39,7 @@ in pkgs.mkShell {
     pkgs.lld
     pkgs.clang
     pkgs.cargo-watch
+    pkgs.cargo-expand
     pkgs.aseprite
     wrapCoz
   ];
