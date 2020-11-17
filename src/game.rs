@@ -76,6 +76,5 @@ fn change_grid_randomly(mut grid: ResMut<Grid>){
     let random_change = (random::<u16>() % 3) as i32 - 1;
 
     grid.change_by_count(random_x, random_y, random_change);
-
 }
 
