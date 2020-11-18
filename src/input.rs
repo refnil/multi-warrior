@@ -12,7 +12,9 @@ impl Plugin for InputPlugin {
         app.init_resource::<KeyboardCombinationInput>()
             .add_system(combination_input_update.system())
             .add_startup_system(test::add_some_input.system())
-            .add_system(count_query::<&mut CombinationInput>.system())
+            //.add_system(test::change_input_at_random.system())
+            .add_system(combination_input_update.system())
+            //.add_system(count_query_filter::<&mut CombinationInput, Changed<CombinationInput>>.system())
             ;
     }
 }
@@ -21,18 +23,18 @@ impl Plugin for InputPlugin {
 
 fn combination_input_update(
     mut reserver: ResMut<KeyboardCombinationInput>,
-    mut query: Query<(&mut CombinationInput,), Changed<CombinationInput>>,
+    mut query: Query<&mut CombinationInput, Changed<CombinationInput>>,
 ) {
-    for (mut comb,) in query.iter_mut() {
+    for mut comb in query.iter_mut() {
         if comb.want_combination && comb.combination.is_none() {
-            comb.combination = reserver.reserve()
+            comb.combination = reserver.reserve();
         } else if !comb.want_combination {
             comb.swap_combination(None).map(|x| reserver.liberate(x));
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CombinationInput {
     pub want_combination: bool,
     combination: Option<KeyboardCombination>,
@@ -91,6 +93,7 @@ impl Default for KeyboardCombinationInput {
     }
 }
 
+#[derive(Debug)]
 pub struct KeyboardCombination {
     keycode: KeyCode,
 }
@@ -115,9 +118,20 @@ impl InputTrait<KeyboardCombination> for Input<KeyCode> {
 
 mod test {
     use bevy::prelude::*;
+    use rand::random;
 
     pub fn add_some_input(commands: &mut Commands) {
         commands.spawn((super::CombinationInput::default(),));
         commands.spawn((super::CombinationInput::default(),));
+    }
+
+
+    pub fn change_input_at_random(mut query: Query<&mut super::CombinationInput>) {
+        for mut combination in query.iter_mut() {
+            let target = random::<bool>();
+            if combination.want_combination != target {
+                combination.want_combination = target;
+            }
+        }
     }
 }
