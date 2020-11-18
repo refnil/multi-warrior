@@ -31,10 +31,10 @@ impl FPSPlugin {
         }
     }
 
-    fn setup(mut commands: Commands, fps: Res<FPSPlugin>, asset_server: Res<AssetServer>) {
+    fn setup(commands: &mut Commands, fps: Res<FPSPlugin>, asset_server: Res<AssetServer>) {
         commands
             // texture
-            .spawn(TextComponents {
+            .spawn(TextBundle {
                 style: Style {
                     align_self: AlignSelf::FlexEnd,
                     ..Default::default()
@@ -44,7 +44,8 @@ impl FPSPlugin {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                     style: TextStyle {
                         font_size: 60.0,
-                        color: fps.color
+                        color: fps.color,
+                        ..Default::default()
                     },
                 },
                 ..Default::default()

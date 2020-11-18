@@ -23,7 +23,7 @@ impl Plugin for Game {
 
             .add_system(change_grid_randomly.system())
 
-            .add_system(count_query::<(&TextureAtlasSprite,)>.system())
+            //.add_system(count_query::<(&TextureAtlasSprite,)>.system())
         ;
     }
 }
@@ -31,22 +31,22 @@ impl Plugin for Game {
 pub struct MainCamera;
 pub struct UICamera;
 
-fn init_cameras(mut commands: Commands){
+fn init_cameras(commands: &mut Commands){
     // 2d camera
-    commands.spawn(Camera2dComponents::default());
+    commands.spawn(Camera2dBundle::default());
     commands.with(MainCamera);
     // UI camera
-    commands.spawn(UiCameraComponents::default());
+    commands.spawn(UiCameraBundle::default());
     commands.with(UICamera);
     // Maybe they should have another component each to differenciate them
 }
 
-fn spawn_unit(mut commands: Commands, asset_server: Res<AssetServer>, mut texture_atlases: ResMut<Assets<TextureAtlas>>){
+fn spawn_unit(commands: &mut Commands, asset_server: Res<AssetServer>, mut texture_atlases: ResMut<Assets<TextureAtlas>>){
     let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    UnitComponents {
-        spritesheet: SpriteSheetComponents {
+    UnitBundle {
+        spritesheet: SpriteSheetBundle {
             texture_atlas: texture_atlas_handle,
             transform: Transform::from_scale(Vec3::splat(6.0)),
             ..Default::default()
@@ -56,7 +56,7 @@ fn spawn_unit(mut commands: Commands, asset_server: Res<AssetServer>, mut textur
             last_y: 1,
             ..Default::default()
         },
-    }.build(&mut commands);
+    }.build(commands);
 }
 
 

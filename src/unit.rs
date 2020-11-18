@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite::entity::*;
 
 #[derive(Default)]
 pub struct UnitPlugin;
@@ -33,12 +34,12 @@ fn animate_sprite_system(
 }
 
 #[derive(Default)]
-pub struct UnitComponents {
-    pub spritesheet: SpriteSheetComponents,
+pub struct UnitBundle {
+    pub spritesheet: SpriteSheetBundle,
     pub unit_info: UnitInfo,
 }
 
-impl UnitComponents {
+impl UnitBundle {
     pub fn build(self, commands: &mut Commands) {
         commands.spawn(self.spritesheet)
             .with(self.unit_info);

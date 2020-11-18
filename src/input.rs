@@ -10,22 +10,24 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<KeyboardCombinationInput>()
-           .add_system(combination_input_update.system())
-           .add_system(count_query::<ciu_query>.system())
-        ;
+            .add_system(combination_input_update.system())
+            .add_startup_system(test::add_some_input.system())
+            .add_system(count_query::<&mut CombinationInput>.system())
+            ;
     }
 }
 
-type ciu_query = (Mut<CombinationInput>,Changed<CombinationInput>);
+//type ciu_query<'a> = (Mut<'a, CombinationInput>, Changed<'a, CombinationInput>);
 
-fn combination_input_update(reserver: ResMut<KeyboardCombinationInput>, query: Query<ciu_query>){
-    for mut comb in query.iter_mut() {
+fn combination_input_update(
+    mut reserver: ResMut<KeyboardCombinationInput>,
+    mut query: Query<(&mut CombinationInput,), Changed<CombinationInput>>,
+) {
+    for (mut comb,) in query.iter_mut() {
         if comb.want_combination && comb.combination.is_none() {
             comb.combination = reserver.reserve()
-        }
-        else if !comb.want_combination && (let Some(key) = comb.combination) {
-            reserver.liberate(key);
-            comb.combination = None;
+        } else if !comb.want_combination {
+            comb.swap_combination(None).map(|x| reserver.liberate(x));
         }
     }
 }

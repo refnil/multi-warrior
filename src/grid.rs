@@ -10,10 +10,10 @@ impl Plugin for GridPlugin {
     fn build(&self, app: &mut AppBuilder){
         app.init_resource::<GridRenderDebug>()
            .add_startup_system(init_render_grid.system())
-           .add_system(update_grid_debug_visible.system())
-           .add_system(update_grid_render_debug.system()) 
-           .add_system(update_grid_transform.system()) 
-           .add_system(update_grid_color.system())
+           //.add_system(update_grid_debug_visible.system())
+           //.add_system(update_grid_render_debug.system()) 
+           //.add_system(update_grid_transform.system()) 
+           //.add_system(update_grid_color.system())
         ;
     }
 }
@@ -58,11 +58,11 @@ impl FromResources for GridRenderDebug {
     }
 }
 
-fn init_render_grid(mut commands: Commands, 
+fn init_render_grid(commands: &mut Commands, 
                     grid: Res<Grid>) {
     for x in 0..grid.x {
         for y in 0..grid.y {
-            commands.spawn(SpriteComponents {
+            commands.spawn(SpriteBundle {
                 sprite: Sprite::new(Vec2::new(1.0,1.0)),
                 ..Default::default()
             });
