@@ -5,9 +5,9 @@ use bevy::input::{keyboard::*, *};
 use crate::utils::*;
 
 #[derive(Default)]
-struct GamePlugin;
+pub struct InputPlugin;
 
-impl Plugin for GamePlugin {
+impl Plugin for InputPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<KeyboardCombinationInput>()
            .add_system(combination_input_update.system())
@@ -30,11 +30,22 @@ fn combination_input_update(reserver: ResMut<KeyboardCombinationInput>, query: Q
     }
 }
 
+#[derive(Default)]
 pub struct CombinationInput {
     pub want_combination: bool,
-    combination: Option<KeyboardCombinationInput>,
+    combination: Option<KeyboardCombination>,
 }
 
+impl CombinationInput {
+    fn swap_combination(
+        &mut self,
+        new: Option<KeyboardCombination>,
+    ) -> Option<KeyboardCombination> {
+        let old = self.combination.take();
+        self.combination = new;
+        return old;
+    }
+}
 
 pub struct KeyboardCombinationInput {
     available: Vec<KeyCode>,
@@ -94,9 +105,17 @@ impl InputTrait<KeyboardCombination> for Input<KeyCode> {
     }
     fn just_pressed(&self, comb: &KeyboardCombination) -> bool {
         self.just_pressed(comb.keycode)
-        
     }
     fn just_released(&self, comb: &KeyboardCombination) -> bool {
         self.just_released(comb.keycode)
+    }
+}
+
+mod test {
+    use bevy::prelude::*;
+
+    pub fn add_some_input(commands: &mut Commands) {
+        commands.spawn((super::CombinationInput::default(),));
+        commands.spawn((super::CombinationInput::default(),));
     }
 }
