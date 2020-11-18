@@ -36,7 +36,9 @@ impl FPSPlugin {
             // texture
             .spawn(TextBundle {
                 style: Style {
-                    align_self: AlignSelf::FlexEnd,
+                    //max_size: Size::new(Val::Percent(25.0), Val::Undefined),
+                    //align_self: AlignSelf::FlexEnd,
+                    flex_grow: 2.0,
                     ..Default::default()
                 },
                 text: Text {
