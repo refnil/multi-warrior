@@ -6,6 +6,7 @@ use crate::grid::*;
 use crate::unit::*;
 use crate::utils::*;
 use crate::input::InputPlugin;
+use crate::button::*;
 
 pub struct Game;
 
@@ -16,6 +17,7 @@ impl Plugin for Game {
             .add_plugin(UnitPlugin::default())
             .add_plugin(GridPlugin::default())
             .add_plugin(InputPlugin::default())
+            .add_plugin(ButtonPlugin::default())
             .add_resource(Grid::new(3, 5))
             .add_startup_system(init_cameras.system())
             .add_startup_system(add_some_friend_and_enemy.system())
