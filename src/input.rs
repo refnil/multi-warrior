@@ -22,13 +22,16 @@ fn combination_input_update(
     mut query: Query<&mut CombinationInput>,
 ) {
     for mut comb in query.iter_mut() {
-        if comb.want_combination && comb.combination.is_none() {
-            comb.combination = reserver.reserve();
-            comb.change_in_frame = comb.combination.is_some();
-        } else if !comb.want_combination {
-            let was_some = comb.combination.is_some();
+        let have_combination = comb.combination.is_some();
+        if comb.want_combination && !have_combination {
+            let reservation = reserver.reserve();
+            if reservation.is_some() {
+                comb.combination = reservation;
+                comb.change_in_frame = true;
+            }
+        } else if !comb.want_combination && have_combination {
             comb.swap_combination(None).map(|x| reserver.liberate(x));
-            comb.change_in_frame = was_some;
+            comb.change_in_frame = true;
         }
     }
 }
