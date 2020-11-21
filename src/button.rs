@@ -8,7 +8,7 @@ pub struct ButtonPlugin;
 impl Plugin for ButtonPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<ButtonMaterials>()
-            .add_startup_system(test::setup.system())
+            .init_resource::<ButtonSpawner>()
             .add_system_to_stage(stage::PRE_UPDATE, press_button_from_input.system())
             .add_system(init_button_material_component.system())
             .add_system(action_button_on_press.system())
@@ -18,11 +18,12 @@ impl Plugin for ButtonPlugin {
 }
 
 #[derive(Clone)]
-struct ButtonMaterials {
+pub struct ButtonMaterials {
     normal: Handle<ColorMaterial>,
     hovered: Handle<ColorMaterial>,
     pressed: Handle<ColorMaterial>,
 }
+
 
 impl ButtonMaterials {
     fn from_colors(
@@ -59,6 +60,20 @@ impl FromResources for ButtonMaterials {
     }
 }
 
+pub struct ButtonSpawner {
+    font: Handle<Font>,
+}
+
+impl FromResources for ButtonSpawner {
+    fn from_resources(resources: &Resources) -> Self {
+        let asset_server = resources.get::<AssetServer>().unwrap();
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        ButtonSpawner {
+            font: font
+        }
+    }
+}
+
 fn change_material_for_state_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
@@ -83,11 +98,19 @@ fn init_button_material_component(
     button_materials: Res<ButtonMaterials>,
     mut query: Query<
         (&Interaction, &mut Handle<ColorMaterial>, &ButtonMaterials),
-        (Added<Handle<ColorMaterial>>, Added<ButtonMaterials>, With<Button>),
+        (
+            Added<Handle<ColorMaterial>>,
+            Added<ButtonMaterials>,
+            With<Button>,
+        ),
     >,
     mut query_default: Query<
         (&Interaction, &mut Handle<ColorMaterial>),
-        (Added<Handle<ColorMaterial>>, With<Button>, Without<ButtonMaterials>),
+        (
+            Added<Handle<ColorMaterial>>,
+            With<Button>,
+            Without<ButtonMaterials>,
+        ),
     >,
 ) {
     for (interaction, mut material) in query_default.iter_mut() {
@@ -100,23 +123,23 @@ fn init_button_material_component(
 }
 
 fn change_text_for_button(
-    query: Query<
-        (&CombinationInput, &Children),
-        (Changed<CombinationInput>, With<Button>)
-    >,
-    mut query_text: Query<
-        &mut Text
-    >) {
-    for (comb, children) in query.iter(){
+    query: Query<(&CombinationInput, &Children), (Changed<CombinationInput>, With<Button>)>,
+    mut query_text: Query<&mut Text>,
+) {
+    for (comb, children) in query.iter() {
         for child in children.iter() {
             if let Ok(mut text) = query_text.get_mut(*child) {
-                let pos = text.value.char_indices().find(|(i, c)| c == &':').map(|(i, c)| i);
+                let pos = text
+                    .value
+                    .char_indices()
+                    .find(|(i, c)| c == &':')
+                    .map(|(i, c)| i);
                 if let Some(pos) = pos {
                     text.value.truncate(pos);
                 }
                 let new_string = match comb.want_combination {
                     true => comb.to_string(),
-                    false => "N/A".to_string()
+                    false => "N/A".to_string(),
                 };
                 text.value.push_str(": ");
                 text.value.push_str(&new_string);
@@ -127,24 +150,20 @@ fn change_text_for_button(
 
 fn press_button_from_input(
     input: Res<Input<KeyCode>>,
-    mut query: Query<
-        (&CombinationInput, &mut Interaction)
-    >){
+    mut query: Query<(&CombinationInput, &mut Interaction)>,
+) {
     for (comb, mut interaction) in query.iter_mut() {
         if input.pressed_t(&*comb) {
             *interaction = Interaction::Clicked;
-        }
-        else if input.just_released_t(&*comb) {
+        } else if input.just_released_t(&*comb) {
             *interaction = Interaction::None;
         }
     }
 }
 
 fn action_button_on_press(
-    mut query: Query<
-        (&mut CombinationInput, &Interaction),
-        Changed<Interaction>
-    >){
+    mut query: Query<(&mut CombinationInput, &Interaction), Changed<Interaction>>,
+) {
     for (mut comb, interaction) in query.iter_mut() {
         if interaction == &Interaction::Clicked {
             comb.want_combination = !comb.want_combination;
@@ -152,68 +171,69 @@ fn action_button_on_press(
     }
 }
 
-fn spawn_button(
-    commands: &mut Commands,
-    text: String,
-    font: &Handle<Font>,
-    custom_material: Option<ButtonMaterials>,
-) {
-    commands.spawn(ButtonBundle {
-        style: Style {
-            size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-            // center button
-            margin: Rect {
-                left: Val::Px(10.0),
-                right: Val::Px(10.0),
-                ..Default::default()
-            },
-            // horizontally center child text
-            //justify_content: JustifyContent::Center,
-            // vertically center child text
-            //align_items: AlignItems::Center,
-            //align_self: AlignSelf::FlexEnd,
-            flex_wrap: FlexWrap::Wrap,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-    if let Some(mat) = custom_material {
-        commands.with(mat);
-    }
-    commands.with(CombinationInput::new(true));
-    commands.with_children(|parent| {
-        parent.spawn(TextBundle {
-            text: Text {
-                value: text,
-                font: font.clone(),
-                style: TextStyle {
-                    font_size: 40.0,
-                    color: Color::rgb(0.9, 0.9, 0.9),
+impl ButtonSpawner {
+    pub fn spawn_button(
+        &self,
+        commands: &mut Commands,
+        text: String,
+        custom_material: Option<ButtonMaterials>,
+    ) {
+        commands.spawn(ButtonBundle {
+            style: Style {
+                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+                // center button
+                margin: Rect {
+                    left: Val::Px(10.0),
+                    right: Val::Px(10.0),
                     ..Default::default()
                 },
+                // horizontally center child text
+                //justify_content: JustifyContent::Center,
+                // vertically center child text
+                //align_items: AlignItems::Center,
+                //align_self: AlignSelf::FlexEnd,
+                flex_wrap: FlexWrap::Wrap,
+                ..Default::default()
             },
             ..Default::default()
         });
-    });
+        if let Some(mat) = custom_material {
+            commands.with(mat);
+        }
+        commands.with(CombinationInput::new(true));
+        commands.with_children(|parent| {
+            parent.spawn(TextBundle {
+                text: Text {
+                    value: text,
+                    font: self.font.clone(),
+                    style: TextStyle {
+                        font_size: 40.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            });
+        });
+    }
 }
 
 mod test {
     use super::*;
     pub fn setup(
         commands: &mut Commands,
-        asset_server: Res<AssetServer>,
+        spawner: Res<ButtonSpawner>,
         mut materials: ResMut<Assets<ColorMaterial>>,
     ) {
-        let font = &asset_server.load("fonts/FiraSans-Bold.ttf");
         let mat =
             ButtonMaterials::from_colors(&mut *materials, Color::RED, Color::GREEN, Color::BLUE);
 
         let mat2 =
             ButtonMaterials::from_colors(&mut *materials, Color::TEAL, Color::PURPLE, Color::GRAY);
-        spawn_button(commands, "Coucou".to_string(), font, Some(mat.clone()));
-        spawn_button(commands, "Coucou2".to_string(), font, Some(mat2.clone()));
-        spawn_button(commands, "Coucou1".to_string(), font, Some(mat2.clone()));
-        spawn_button(commands, "Coucou3".to_string(), font, Some(mat2.clone()));
-        spawn_button(commands, "Coucou4".to_string(), font, Some(mat2.clone()));
+        spawner.spawn_button(commands, "Coucou".to_string(), Some(mat.clone()));
+        spawner.spawn_button(commands, "Coucou2".to_string(), Some(mat2.clone()));
+        spawner.spawn_button(commands, "Coucou1".to_string(), Some(mat2.clone()));
+        spawner.spawn_button(commands, "Coucou3".to_string(), Some(mat2.clone()));
+        spawner.spawn_button(commands, "Coucou4".to_string(), Some(mat2.clone()));
     }
 }

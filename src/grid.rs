@@ -42,8 +42,8 @@ impl FromResources for GridRenderDebug {
         let mut materials = res.get_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             nothing_color: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
-            friend_color: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
-            enemy_color: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
+            friend_color: materials.add(Color::rgb(0.0, 1.0, 1.0).into()),
+            enemy_color: materials.add(Color::rgb(1.0, 1.0, 0.0).into()),
             visible: false,
 
             left: 0.0,
