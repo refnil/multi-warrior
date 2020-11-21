@@ -52,5 +52,6 @@ in pkgs.mkShell {
     pkgs.cargo-cache
     pkgs.aseprite
     wrapCoz
+    pkgs.peek
   ];
 }
