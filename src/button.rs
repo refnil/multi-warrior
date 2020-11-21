@@ -102,7 +102,7 @@ fn init_button_material_component(
 fn change_text_for_button(
     query: Query<
         (&CombinationInput, &Children),
-        Changed<CombinationInput>
+        (Changed<CombinationInput>, With<Button>)
     >,
     mut query_text: Query<
         &mut Text
