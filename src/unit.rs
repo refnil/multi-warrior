@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy::sprite::entity::*;
 
+use crate::grid::*;
+
 #[derive(Default)]
 pub struct UnitPlugin;
 
@@ -8,6 +10,7 @@ impl Plugin for UnitPlugin {
     fn build(&self, app: &mut AppBuilder){
         app.add_resource(AnimTimer { timer: Timer::from_seconds(0.1, true) })
            //.add_system(move_unit_system.system())
+           .add_system(unit_update.system())
            .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
            .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system())
         ;
@@ -61,7 +64,7 @@ struct Animation {
 #[derive(Debug, Clone)]
 pub enum UnitState {
     Still(Direction),
-    Moving(u32, u32, Direction),
+    Moving(Direction),
     Attacking,
 }
 
@@ -73,10 +76,10 @@ impl UnitState {
             Self::Still(Direction::Up) => vec![10],
             Self::Still(Direction::Left) => vec![4],
 
-            Self::Moving(_,_,Direction::Down) => vec![1, 2, 0],
-            Self::Moving(_,_,Direction::Right) => vec![7, 8, 7, 6],
-            Self::Moving(_,_,Direction::Up) => vec![10, 11, 9],
-            Self::Moving(_,_,Direction::Left) => vec![4, 3, 2],
+            Self::Moving(Direction::Down) => vec![1, 2, 1, 0],
+            Self::Moving(Direction::Right) => vec![7, 8, 7, 6],
+            Self::Moving(Direction::Up) => vec![10, 11, 10, 9],
+            Self::Moving(Direction::Left) => vec![4, 5, 4, 3],
             _ => panic!("get_animate: {:?}", self)
        };
        Animation {
@@ -110,9 +113,48 @@ pub enum Direction {
     Down
 }
 
+impl Direction {
+    fn next(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Left,
+            Direction::Left => Direction::Down,
+            Direction::Down => Direction::Right,
+            Direction::Right => Direction::Up
+        }
+    }
+}
+
 impl Default for Direction {
     fn default() -> Self {
         Self::Down
+    }
+}
+
+fn unit_update(
+    time: Res<Time>,
+    grid_proj: Res<GridRenderDebug>,
+    mut query: Query<
+        (&mut UnitState, &mut UnitInfo, &mut Transform)
+        >
+        ){
+    for (mut state, mut info, mut transform) in query.iter_mut(){
+        info.time += time.delta_seconds;
+        println!("{}", info.time);
+        if info.time > info.next_action {
+            println!("Changing state");
+            info.next_action = info.time + info.action_delay;
+            *state = match &*state {
+                UnitState::Still(dir) => {
+                    UnitState::Moving(dir.next())
+                }
+                UnitState::Moving(dir) => {
+                    UnitState::Still(dir.clone())
+                }
+                UnitState::Attacking => {
+                    panic!("Attacking is not done yet");
+                }
+            };
+        }
     }
 }
 
@@ -123,5 +165,10 @@ pub struct UnitInfo {
 
     pub target_x: i32,
     pub target_y: i32,
-}
 
+    pub speed: f32,
+
+    pub time: f32,
+    pub next_action: f32,
+    pub action_delay: f32,
+}

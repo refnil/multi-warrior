@@ -63,7 +63,7 @@ fn spawn_unit(
             last_y: 1,
             ..Default::default()
         },
-        unit_state: UnitState::Moving(0, 0, crate::unit::Direction::Right),
+        unit_state: UnitState::Moving(crate::unit::Direction::Right),
     }
     .build(commands);
     let unit = commands.current_entity().unwrap();
