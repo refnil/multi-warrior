@@ -38,7 +38,7 @@ fn init_cameras(commands: &mut Commands) {
     commands.spawn(Camera2dBundle::default());
     commands.with(MainCamera);
     // UI camera
-    commands.spawn(UiCameraBundle::default());
+    commands.spawn(CameraUiBundle::default());
     commands.with(UICamera);
     // Maybe they should have another component each to differenciate them
 }

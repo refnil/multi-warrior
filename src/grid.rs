@@ -110,7 +110,7 @@ fn update_grid_transform(
 fn update_grid_color(
     grid: Res<Grid>,
     grid_debug: Res<GridRenderDebug>,
-    mut query: Query<(&GridRenderDebugNode, &mut Handle<ColorMaterial>, &mut Draw)>,
+    mut query: Query<(&GridRenderDebugNode, &mut Handle<ColorMaterial>, &mut Visible)>,
 ) {
     for (node, mut material, mut draw) in query.iter_mut() {
         let status = grid.get_status(node.x, node.y);

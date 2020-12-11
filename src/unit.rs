@@ -27,8 +27,8 @@ fn animate_sprite_system(
     mut timer: ResMut<AnimTimer>,
     mut query: Query<(&mut TextureAtlasSprite, &mut Animation)>,
 ) {
-    timer.timer.tick(time.delta_seconds);
-    if timer.timer.finished {
+    timer.timer.tick(time.delta_seconds());
+    if timer.timer.just_finished() {
         for (mut sprite, mut animation) in query.iter_mut() {
             animation.current_frame = (animation.current_frame + 1) % animation.frames.len() as u32;
             sprite.index = animation.frames[animation.current_frame as usize];
@@ -138,7 +138,7 @@ fn unit_update(
         >
         ){
     for (mut state, mut info, mut transform) in query.iter_mut(){
-        info.time += time.delta_seconds;
+        info.time += time.delta_seconds();
         println!("{}", info.time);
         if info.time > info.next_action {
             println!("Changing state");
