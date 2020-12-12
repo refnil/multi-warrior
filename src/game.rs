@@ -20,12 +20,12 @@ impl Plugin for Game {
             .add_resource(Grid::new(10, 10))
             .add_startup_system(init_cameras.system())
             .add_startup_system(add_some_friend_and_enemy.system())
-            .add_startup_system(spawn_unit.system())
+            .add_startup_system(test::spawn_unit.system())
 
             .add_system(change_grid_randomly.system())
             .add_system(on_button_click.system())
 
-            //.add_system(count_query::<(&TextureAtlasSprite,)>.system())
+            //.add_system(crate::utils::count_query::<(&TextureAtlasSprite,)>.system())
         ;
     }
 }
@@ -41,90 +41,6 @@ fn init_cameras(commands: &mut Commands) {
     commands.spawn(CameraUiBundle::default());
     commands.with(UICamera);
     // Maybe they should have another component each to differenciate them
-}
-
-fn spawn_unit(
-    commands: &mut Commands,
-    asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    spawner: Res<ButtonSpawner>,
-) {
-    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-            UnitBundle {
-                spritesheet: SpriteSheetBundle {
-                    texture_atlas: texture_atlas_handle.clone(),
-                    transform: Transform::from_scale(Vec3::splat(3.0)),
-                    ..Default::default()
-                },
-                unit_info: UnitInfo {
-                    last_x: 2,
-                    last_y: 2,
-                    target_x: 2,
-                    target_y: 2,
-                    action_delay: 1.0,
-                    ..Default::default()
-                },
-                unit_state: UnitState::Moving(crate::unit::Direction::Right),
-            }
-            .build(commands)
-            .with(MoveOnForceAI{ally: false});
-}
-
-fn spawn_dancing_unit(
-    commands: &mut Commands,
-    asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    spawner: Res<ButtonSpawner>,
-) {
-    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    for i in 0..6 {
-        for j in 0..6 {
-            UnitBundle {
-                spritesheet: SpriteSheetBundle {
-                    texture_atlas: texture_atlas_handle.clone(),
-                    transform: Transform::from_scale(Vec3::splat(3.0)),
-                    ..Default::default()
-                },
-                unit_info: UnitInfo {
-                    last_x: 2 * i,
-                    last_y: 2 * j,
-                    target_x: 2 * i,
-                    target_y: 2 * j,
-                    action_delay: 2.0 + ((i + 1) as f32 * (j + 1) as f32).sin(),
-                    ..Default::default()
-                },
-                unit_state: UnitState::Moving(crate::unit::Direction::Right),
-            }
-            .build(commands)
-            .with(TurningAI);
-        }
-    }
-    let unit = commands.current_entity().unwrap();
-
-    spawner.spawn_button(commands, "Left".to_string(), None);
-    commands.with(StateSetter {
-        state: UnitState::Still(crate::unit::Direction::Left),
-        entity: unit,
-    });
-    spawner.spawn_button(commands, "Right".to_string(), None);
-    commands.with(StateSetter {
-        state: UnitState::Still(crate::unit::Direction::Right),
-        entity: unit,
-    });
-    spawner.spawn_button(commands, "Down".to_string(), None);
-    commands.with(StateSetter {
-        state: UnitState::Still(crate::unit::Direction::Down),
-        entity: unit,
-    });
-    spawner.spawn_button(commands, "Up".to_string(), None);
-    commands.with(StateSetter {
-        state: UnitState::Still(crate::unit::Direction::Up),
-        entity: unit,
-    });
 }
 
 #[derive(Clone)]
@@ -164,4 +80,95 @@ fn change_grid_randomly(mut grid: ResMut<Grid>) {
     let random_change = (random::<u16>() % 3) as i32 - 1;
 
     grid.change_by_count(random_x, random_y, random_change);
+}
+mod test {
+    use crate::button::*;
+    use crate::game::*;
+    use crate::unit::*;
+    use bevy::prelude::*;
+
+    #[allow(dead_code)]
+    pub fn spawn_unit(
+        commands: &mut Commands,
+        asset_server: Res<AssetServer>,
+        mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    ) {
+        let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+        let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
+        let texture_atlas_handle = texture_atlases.add(texture_atlas);
+        UnitBundle {
+            spritesheet: SpriteSheetBundle {
+                texture_atlas: texture_atlas_handle.clone(),
+                transform: Transform::from_scale(Vec3::splat(3.0)),
+                ..Default::default()
+            },
+            unit_info: UnitInfo {
+                last_x: 2,
+                last_y: 2,
+                target_x: 2,
+                target_y: 2,
+                action_delay: 1.0,
+                ..Default::default()
+            },
+            unit_state: UnitState::Moving(crate::unit::Direction::Right),
+        }
+        .build(commands)
+        .with(MoveOnForceAI { ally: false });
+    }
+
+    #[allow(dead_code)]
+    pub fn spawn_dancing_unit(
+        commands: &mut Commands,
+        asset_server: Res<AssetServer>,
+        mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+        spawner: Res<ButtonSpawner>,
+    ) {
+        let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+        let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
+        let texture_atlas_handle = texture_atlases.add(texture_atlas);
+        for i in 0..6 {
+            for j in 0..6 {
+                UnitBundle {
+                    spritesheet: SpriteSheetBundle {
+                        texture_atlas: texture_atlas_handle.clone(),
+                        transform: Transform::from_scale(Vec3::splat(3.0)),
+                        ..Default::default()
+                    },
+                    unit_info: UnitInfo {
+                        last_x: 2 * i,
+                        last_y: 2 * j,
+                        target_x: 2 * i,
+                        target_y: 2 * j,
+                        action_delay: 2.0 + ((i + 1) as f32 * (j + 1) as f32).sin(),
+                        ..Default::default()
+                    },
+                    unit_state: UnitState::Moving(crate::unit::Direction::Right),
+                }
+                .build(commands)
+                .with(TurningAI);
+            }
+        }
+        let unit = commands.current_entity().unwrap();
+
+        spawner.spawn_button(commands, "Left".to_string(), None);
+        commands.with(StateSetter {
+            state: UnitState::Still(crate::unit::Direction::Left),
+            entity: unit,
+        });
+        spawner.spawn_button(commands, "Right".to_string(), None);
+        commands.with(StateSetter {
+            state: UnitState::Still(crate::unit::Direction::Right),
+            entity: unit,
+        });
+        spawner.spawn_button(commands, "Down".to_string(), None);
+        commands.with(StateSetter {
+            state: UnitState::Still(crate::unit::Direction::Down),
+            entity: unit,
+        });
+        spawner.spawn_button(commands, "Up".to_string(), None);
+        commands.with(StateSetter {
+            state: UnitState::Still(crate::unit::Direction::Up),
+            entity: unit,
+        });
+    }
 }

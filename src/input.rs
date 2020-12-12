@@ -1,9 +1,5 @@
 use bevy::prelude::*;
 
-use bevy::input::{keyboard::*, *};
-
-use crate::utils::*;
-
 #[derive(Default)]
 pub struct InputPlugin;
 
@@ -11,7 +7,6 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<KeyboardCombinationInput>()
             .add_startup_system(test::add_some_input.system())
-            //.add_system(test::change_input_at_random.system())
             .add_system_to_stage(stage::PRE_UPDATE, combination_input_update.system())
             .add_system_to_stage(stage::POST_UPDATE, combination_reset_end_frame.system());
     }
@@ -173,11 +168,13 @@ mod test {
     use bevy::prelude::*;
     use rand::random;
 
+    #[allow(dead_code)]
     pub fn add_some_input(commands: &mut Commands) {
         commands.spawn((super::CombinationInput::default(),));
         commands.spawn((super::CombinationInput::default(),));
     }
 
+    #[allow(dead_code)]
     pub fn change_input_at_random(mut query: Query<&mut super::CombinationInput>) {
         for mut combination in query.iter_mut() {
             let target = random::<bool>();

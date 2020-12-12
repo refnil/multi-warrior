@@ -1,19 +1,19 @@
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
-    prelude::*
+    prelude::*,
 };
 
 #[derive(Default, Clone)]
 pub struct FPSPlugin {
-    pub color: Color
+    pub color: Color,
 }
 
-impl Plugin for FPSPlugin{
-    fn build(&self, app: &mut AppBuilder){
+impl Plugin for FPSPlugin {
+    fn build(&self, app: &mut AppBuilder) {
         app.add_plugin(FrameTimeDiagnosticsPlugin::default())
-           .add_resource(self.clone())
-           .add_startup_system(Self::setup.system())
-           .add_system(Self::text_update_system.system());
+            .add_resource(self.clone())
+            .add_startup_system(Self::setup.system())
+            .add_system(Self::text_update_system.system());
     }
 }
 
@@ -21,7 +21,7 @@ impl Plugin for FPSPlugin{
 struct FpsText;
 
 impl FPSPlugin {
-    fn text_update_system(diagnostics: Res<Diagnostics>, mut query: Query<(&mut Text, &FpsText)>) { 
+    fn text_update_system(diagnostics: Res<Diagnostics>, mut query: Query<(&mut Text, &FpsText)>) {
         for (mut text, _tag) in query.iter_mut() {
             if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
                 if let Some(average) = fps.average() {
@@ -55,4 +55,3 @@ impl FPSPlugin {
             .with(FpsText);
     }
 }
-

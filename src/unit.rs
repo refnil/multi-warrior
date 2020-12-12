@@ -72,7 +72,6 @@ struct Animation {
 pub enum UnitState {
     Still(Direction),
     Moving(Direction),
-    Attacking,
 }
 
 impl UnitState {
@@ -87,7 +86,6 @@ impl UnitState {
             Self::Moving(Direction::Right) => vec![7, 8, 7, 6],
             Self::Moving(Direction::Up) => vec![10, 11, 10, 9],
             Self::Moving(Direction::Left) => vec![4, 5, 4, 3],
-            _ => panic!("get_animate: {:?}", self),
         };
         Animation {
             current_frame: 0,
@@ -186,9 +184,6 @@ fn turning_ai_update(
 
                     UnitState::Still(dir)
                 }
-                UnitState::Attacking => {
-                    panic!("TurningAI doesn't attack.");
-                }
             };
         }
     }
@@ -209,7 +204,7 @@ fn move_on_ai_force_update(
         if unit_time.time > info.end_time {
             info.start_time = unit_time.time;
             info.end_time = unit_time.time + info.action_delay;
-            let statusWanted = if force.ally {
+            let status_wanted = if force.ally {
                 GridStatus::Friend
             } else {
                 GridStatus::Enemy
@@ -221,7 +216,7 @@ fn move_on_ai_force_update(
                         let x = info.last_x + d.x();
                         let y = info.last_y + d.y();
                         if let Some(status) = grid.get_status(x, y) {
-                            if status == statusWanted || status == GridStatus::Neutral {
+                            if status == status_wanted || status == GridStatus::Neutral {
                                 potential_pos = Some((d, x, y));
                             }
                         }
@@ -244,9 +239,6 @@ fn move_on_ai_force_update(
                     info.last_y = info.target_y;
 
                     UnitState::Still(dir.next().next())
-                }
-                UnitState::Attacking => {
-                    panic!("TurningAI doesn't attack.");
                 }
             };
         }

@@ -24,7 +24,6 @@ pub struct ButtonMaterials {
     pressed: Handle<ColorMaterial>,
 }
 
-
 impl ButtonMaterials {
     fn from_colors(
         assets: &mut Assets<ColorMaterial>,
@@ -68,9 +67,7 @@ impl FromResources for ButtonSpawner {
     fn from_resources(resources: &Resources) -> Self {
         let asset_server = resources.get::<AssetServer>().unwrap();
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-        ButtonSpawner {
-            font: font
-        }
+        ButtonSpawner { font: font }
     }
 }
 
@@ -132,8 +129,8 @@ fn change_text_for_button(
                 let pos = text
                     .value
                     .char_indices()
-                    .find(|(i, c)| c == &':')
-                    .map(|(i, c)| i);
+                    .find(|(_i, c)| c == &':')
+                    .map(|(i, _c)| i);
                 if let Some(pos) = pos {
                     text.value.truncate(pos);
                 }
@@ -220,6 +217,7 @@ impl ButtonSpawner {
 
 mod test {
     use super::*;
+    #[allow(dead_code)]
     pub fn setup(
         commands: &mut Commands,
         spawner: Res<ButtonSpawner>,

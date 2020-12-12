@@ -133,13 +133,13 @@ fn update_grid_transform(
 fn update_grid_color(
     grid: Res<Grid>,
     grid_debug: Res<GridRenderDebug>,
-    mut query: Query<
+    mut query_materials: Query<
         (&GridTransform, &mut Handle<ColorMaterial>, &mut Visible),
         With<GridRenderDebugNode>,
     >,
 ) {
     if grid_debug.visible {
-        for (node, mut material, mut draw) in query.iter_mut() {
+        for (node, mut material, mut draw) in query_materials.iter_mut() {
             let status = grid.get_status(node.x as i32, node.y as i32);
             let target_material = match status {
                 Some(GridStatus::Friend) => &grid_debug.friend_color,
@@ -151,9 +151,8 @@ fn update_grid_color(
             }
             draw.is_visible = true;
         }
-    }
-    else {
-        for (node, mut material, mut draw) in query.iter_mut() {
+    } else {
+        for (_, _, mut draw) in query_materials.iter_mut() {
             draw.is_visible = false;
         }
     }
