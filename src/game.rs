@@ -52,6 +52,35 @@ fn spawn_unit(
     let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
+            UnitBundle {
+                spritesheet: SpriteSheetBundle {
+                    texture_atlas: texture_atlas_handle.clone(),
+                    transform: Transform::from_scale(Vec3::splat(3.0)),
+                    ..Default::default()
+                },
+                unit_info: UnitInfo {
+                    last_x: 2,
+                    last_y: 2,
+                    target_x: 2,
+                    target_y: 2,
+                    action_delay: 1.0,
+                    ..Default::default()
+                },
+                unit_state: UnitState::Moving(crate::unit::Direction::Right),
+            }
+            .build(commands)
+            .with(MoveOnForceAI{ally: false});
+}
+
+fn spawn_dancing_unit(
+    commands: &mut Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    spawner: Res<ButtonSpawner>,
+) {
+    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
     for i in 0..6 {
         for j in 0..6 {
             UnitBundle {

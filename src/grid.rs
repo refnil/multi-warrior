@@ -120,7 +120,7 @@ fn update_grid_render_debug(
 
 fn update_grid_transform(
     info: Res<GridRenderDebug>,
-    mut query: Query<(&GridTransform, &mut Transform), Changed<GridTransform>>,
+    mut query: Query<(&GridTransform, &mut Transform)>,
 ) {
     for (node, mut transform) in query.iter_mut() {
         transform.translation = info.pos(node.x, node.y);
@@ -138,18 +138,24 @@ fn update_grid_color(
         With<GridRenderDebugNode>,
     >,
 ) {
-    for (node, mut material, mut draw) in query.iter_mut() {
-        let status = grid.get_status(node.x as i32, node.y as i32);
-        let target_material = match status {
-            GridStatus::Neutral => &grid_debug.nothing_color,
-            GridStatus::Friend => &grid_debug.friend_color,
-            GridStatus::Enemy => &grid_debug.enemy_color,
-        };
-        if *material != *target_material {
-            *material = target_material.clone();
+    if grid_debug.visible {
+        for (node, mut material, mut draw) in query.iter_mut() {
+            let status = grid.get_status(node.x as i32, node.y as i32);
+            let target_material = match status {
+                Some(GridStatus::Friend) => &grid_debug.friend_color,
+                Some(GridStatus::Enemy) => &grid_debug.enemy_color,
+                _ => &grid_debug.nothing_color,
+            };
+            if *material != *target_material {
+                *material = target_material.clone();
+            }
+            draw.is_visible = true;
         }
-
-        draw.is_visible = grid_debug.visible;
+    }
+    else {
+        for (node, mut material, mut draw) in query.iter_mut() {
+            draw.is_visible = false;
+        }
     }
 }
 
@@ -159,6 +165,7 @@ pub struct Grid {
     pub y: i32,
 }
 
+#[derive(PartialEq)]
 pub enum GridStatus {
     Friend,
     Neutral,
@@ -208,22 +215,23 @@ impl Grid {
         }
     }
 
-    pub fn get_status(self: &Grid, x: i32, y: i32) -> GridStatus {
+    pub fn get_status(self: &Grid, x: i32, y: i32) -> Option<GridStatus> {
         coz::scope!("grid::get_status");
-        let count = self.get_count(x, y);
-        if count == 0 {
-            GridStatus::Neutral
-        } else if count < 0 {
-            GridStatus::Enemy
-        } else {
-            GridStatus::Friend
-        }
+        self.get_count(x, y).map(|count| {
+            if count == 0 {
+                GridStatus::Neutral
+            } else if count < 0 {
+                GridStatus::Enemy
+            } else {
+                GridStatus::Friend
+            }
+        })
     }
 
-    pub fn get_count(self: &Grid, x: i32, y: i32) -> i32 {
+    pub fn get_count(self: &Grid, x: i32, y: i32) -> Option<i32> {
         if let Some(pos) = self.to_pos(x, y) {
-            return self.people_by_case[pos];
+            return Some(self.people_by_case[pos]);
         }
-        return 0;
+        return None;
     }
 }

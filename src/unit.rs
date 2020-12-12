@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy::sprite::entity::*;
+use bevy::tasks::prelude::*;
+
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use crate::grid::*;
 
@@ -11,8 +14,9 @@ impl Plugin for UnitPlugin {
         app.add_resource(AnimTimer {
             timer: Timer::from_seconds(0.1, true),
         })
-        //.add_system(move_unit_system.system())
-        .add_system(unit_update.system())
+        .add_system(add_time_on_unit_info.system())
+        .add_system(turning_ai_update.system())
+        .add_system(move_on_ai_force_update.system())
         .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
         .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
     }
@@ -40,13 +44,18 @@ pub struct UnitBundle {
 }
 
 impl UnitBundle {
-    pub fn build(self, commands: &mut Commands) -> &mut Commands{
+    pub fn build(self, commands: &mut Commands) -> &mut Commands {
         commands
             .spawn(self.spritesheet)
             .with(self.unit_info)
             .with(self.unit_state.get_animation())
             .with(self.unit_state)
-            .with(GridTransform{ x:0.0, y: 0.0, update_scale: false})
+            .with(UnitTime::default())
+            .with(GridTransform {
+                x: 0.0,
+                y: 0.0,
+                update_scale: false,
+            })
     }
 }
 
@@ -99,7 +108,7 @@ impl Default for UnitState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, EnumIter)]
 pub enum Direction {
     Up,
     Left,
@@ -142,17 +151,29 @@ impl Default for Direction {
     }
 }
 
-fn unit_update(
+fn add_time_on_unit_info(
     time: Res<Time>,
-    mut query: Query<(&mut UnitState, &mut UnitInfo, &mut GridTransform), With<TurningAI>>,
+    pool: Res<ComputeTaskPool>,
+    mut query: Query<&mut UnitTime>,
 ) {
-    for (mut state, mut info, mut transform) in query.iter_mut() {
-        info.time += time.delta_seconds();
-        update_pos(&info, &mut transform);
-        if info.time > info.end_time {
-            info.start_time = info.time;
-            info.end_time = info.time + info.action_delay;
-            *state = match &*state {
+    let delta = time.delta_seconds();
+    query.par_iter_mut(64).for_each(&pool, |mut unit| {
+        unit.time += delta;
+    });
+}
+
+fn turning_ai_update(
+    mut query: Query<
+        (&UnitTime, &mut UnitState, &mut UnitInfo, &mut GridTransform),
+        With<TurningAI>,
+    >,
+) {
+    for (unit_time, mut state, mut info, mut transform) in query.iter_mut() {
+        update_pos(&unit_time, &info, &mut transform);
+        if unit_time.time > info.end_time {
+            info.start_time = unit_time.time;
+            info.end_time = unit_time.time + info.action_delay;
+            *state = match *state {
                 UnitState::Still(dir) => {
                     let new_dir = dir.next();
                     info.target_x = info.last_x + new_dir.x();
@@ -163,7 +184,7 @@ fn unit_update(
                     info.last_x = info.target_x;
                     info.last_y = info.target_y;
 
-                    UnitState::Still(dir.clone())
+                    UnitState::Still(dir)
                 }
                 UnitState::Attacking => {
                     panic!("TurningAI doesn't attack.");
@@ -173,8 +194,67 @@ fn unit_update(
     }
 }
 
-fn update_pos(info: &UnitInfo, mut transform: &mut GridTransform) {
-    let ratio = (info.time - info.start_time) / (info.end_time - info.start_time);
+fn move_on_ai_force_update(
+    mut grid: ResMut<Grid>,
+    mut query: Query<(
+        &UnitTime,
+        &mut UnitState,
+        &mut UnitInfo,
+        &mut GridTransform,
+        &MoveOnForceAI,
+    )>,
+) {
+    for (unit_time, mut state, mut info, mut transform, force) in query.iter_mut() {
+        update_pos(&unit_time, &info, &mut transform);
+        if unit_time.time > info.end_time {
+            info.start_time = unit_time.time;
+            info.end_time = unit_time.time + info.action_delay;
+            let statusWanted = if force.ally {
+                GridStatus::Friend
+            } else {
+                GridStatus::Enemy
+            };
+            *state = match &*state {
+                UnitState::Still(dir) => {
+                    let mut potential_pos: Option<(Direction, i32, i32)> = None;
+                    for d in Direction::iter() {
+                        let x = info.last_x + d.x();
+                        let y = info.last_y + d.y();
+                        if let Some(status) = grid.get_status(x, y) {
+                            if status == statusWanted || status == GridStatus::Neutral {
+                                potential_pos = Some((d, x, y));
+                            }
+                        }
+                    }
+
+                    if let Some((d, x, y)) = potential_pos {
+                        let count_change = if force.ally { 1 } else { -1 };
+                        grid.change_by_count(info.last_x, info.last_y, -count_change);
+                        grid.change_by_count(x, y, count_change);
+                        info.target_x = x;
+                        info.target_y = y;
+
+                        UnitState::Moving(d)
+                    } else {
+                        UnitState::Still(dir.next())
+                    }
+                }
+                UnitState::Moving(dir) => {
+                    info.last_x = info.target_x;
+                    info.last_y = info.target_y;
+
+                    UnitState::Still(dir.next().next())
+                }
+                UnitState::Attacking => {
+                    panic!("TurningAI doesn't attack.");
+                }
+            };
+        }
+    }
+}
+
+fn update_pos(time: &UnitTime, info: &UnitInfo, mut transform: &mut GridTransform) {
+    let ratio = (time.time - info.start_time) / (info.end_time - info.start_time);
     transform.x = info.last_x as f32 + ratio * (info.target_x - info.last_x) as f32;
     transform.y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
 }
@@ -189,12 +269,14 @@ pub struct UnitInfo {
     pub target_x: i32,
     pub target_y: i32,
 
-    pub time: f32,
     pub start_time: f32,
     pub end_time: f32,
 }
 
-struct UnitMovingState {}
+#[derive(Default)]
+pub struct UnitTime {
+    pub time: f32,
+}
 
 #[derive(Default)]
 pub struct UnitStats {
@@ -202,3 +284,6 @@ pub struct UnitStats {
 }
 
 pub struct TurningAI;
+pub struct MoveOnForceAI {
+    pub ally: bool,
+}
