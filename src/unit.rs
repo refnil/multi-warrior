@@ -46,6 +46,7 @@ impl UnitBundle {
             .with(self.unit_info)
             .with(self.unit_state.get_animation())
             .with(self.unit_state)
+            .with(GridTransform{ x:0.0, y: 0.0, update_scale: false})
     }
 }
 
@@ -143,12 +144,11 @@ impl Default for Direction {
 
 fn unit_update(
     time: Res<Time>,
-    grid_proj: Res<GridRenderDebug>,
-    mut query: Query<(&mut UnitState, &mut UnitInfo, &mut Transform), With<TurningAI>>,
+    mut query: Query<(&mut UnitState, &mut UnitInfo, &mut GridTransform), With<TurningAI>>,
 ) {
     for (mut state, mut info, mut transform) in query.iter_mut() {
         info.time += time.delta_seconds();
-        update_pos(&grid_proj, &info, &mut transform);
+        update_pos(&info, &mut transform);
         if info.time > info.end_time {
             info.start_time = info.time;
             info.end_time = info.time + info.action_delay;
@@ -173,11 +173,10 @@ fn unit_update(
     }
 }
 
-fn update_pos(grid: &GridRenderDebug, info: &UnitInfo, mut transform: &mut Transform) {
+fn update_pos(info: &UnitInfo, mut transform: &mut GridTransform) {
     let ratio = (info.time - info.start_time) / (info.end_time - info.start_time);
-    let x = info.last_x as f32 + ratio * (info.target_x - info.last_x) as f32;
-    let y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
-    transform.translation = grid.pos(x, y);
+    transform.x = info.last_x as f32 + ratio * (info.target_x - info.last_x) as f32;
+    transform.y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
 }
 
 #[derive(Default)]

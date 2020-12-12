@@ -44,9 +44,18 @@ impl GridRenderDebug {
     }
 }
 
-pub struct GridRenderDebugNode {
-    x: i32,
-    y: i32,
+struct GridRenderDebugNode;
+
+pub struct GridTransform {
+    pub x: f32,
+    pub y: f32,
+    pub update_scale: bool
+}
+
+impl GridTransform {
+    pub fn on(x: i32, y: i32) -> GridTransform {
+        GridTransform { x: x as f32, y: y as f32, update_scale: true }
+    }
 }
 
 impl FromResources for GridRenderDebug {
@@ -76,7 +85,8 @@ fn init_render_grid(commands: &mut Commands, grid: Res<Grid>) {
                 sprite: Sprite::new(Vec2::new(1.0, 1.0)),
                 ..Default::default()
             });
-            commands.with(GridRenderDebugNode { x: x, y: y });
+            commands.with(GridRenderDebugNode);
+            commands.with(GridTransform::on(x,y));
         }
     }
 }
@@ -106,24 +116,23 @@ fn update_grid_render_debug(
 
 fn update_grid_transform(
     info: Res<GridRenderDebug>,
-    mut query: Query<(&GridRenderDebugNode, &mut Transform)>
+    mut query: Query<(&GridTransform, &mut Transform), Changed<GridTransform>>
 ) {
     for (node, mut transform) in query.iter_mut() {
-        let nodex = node.x as f32;
-        let nodey = node.y as f32;
-
-        transform.translation = info.pos(nodex, nodey);
+        transform.translation = info.pos(node.x, node.y);
+        if node.update_scale {
         transform.scale = info.scale();
+        }
     }
 }
 
 fn update_grid_color(
     grid: Res<Grid>,
     grid_debug: Res<GridRenderDebug>,
-    mut query: Query<(&GridRenderDebugNode, &mut Handle<ColorMaterial>, &mut Visible)>,
+    mut query: Query<(&GridTransform, &mut Handle<ColorMaterial>, &mut Visible), With<GridRenderDebugNode>>,
 ) {
     for (node, mut material, mut draw) in query.iter_mut() {
-        let status = grid.get_status(node.x, node.y);
+        let status = grid.get_status(node.x as i32, node.y as i32);
         let target_material = match status {
             GridStatus::Neutral => &grid_debug.nothing_color,
             GridStatus::Friend => &grid_debug.friend_color,
