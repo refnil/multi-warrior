@@ -17,11 +17,6 @@ impl Plugin for UnitPlugin {
     }
 }
 
-/*
-fn move_unit_system(grid: ResMut<Grid>, grid_info: Res<GridRenderDebug>, transform: Mut<Transform>, unit_info: Mut<UnitInfo>) {
-}
-*/
-
 fn animate_sprite_system(
     time: Res<Time>,
     mut timer: ResMut<AnimTimer>,
@@ -122,6 +117,24 @@ impl Direction {
             Direction::Right => Direction::Up
         }
     }
+
+    fn x(&self) -> i32 {
+        match self {
+            Direction::Up => 0,
+            Direction::Left => -1,
+            Direction::Down => 0,
+            Direction::Right => 1
+        }
+    }
+
+    fn y(&self) -> i32 {
+        match self {
+            Direction::Up => 1,
+            Direction::Left => 0,
+            Direction::Down => -1,
+            Direction::Right => 0
+        }
+    }
 }
 
 impl Default for Direction {
@@ -135,19 +148,25 @@ fn unit_update(
     grid_proj: Res<GridRenderDebug>,
     mut query: Query<
         (&mut UnitState, &mut UnitInfo, &mut Transform)
-        >
+        >,
         ){
     for (mut state, mut info, mut transform) in query.iter_mut(){
         info.time += time.delta_seconds();
-        println!("{}", info.time);
-        if info.time > info.next_action {
-            println!("Changing state");
-            info.next_action = info.time + info.action_delay;
+        update_pos(&grid_proj, &info, &mut transform);
+        if info.time > info.end_time {
+            info.start_time = info.time;
+            info.end_time = info.time + info.action_delay;
             *state = match &*state {
                 UnitState::Still(dir) => {
-                    UnitState::Moving(dir.next())
+                    let new_dir = dir.next();
+                    info.target_x = info.last_x + new_dir.x();
+                    info.target_y = info.last_y + new_dir.y();
+                    UnitState::Moving(new_dir)
                 }
                 UnitState::Moving(dir) => {
+                    info.last_x = info.target_x;
+                    info.last_y = info.target_y;
+
                     UnitState::Still(dir.clone())
                 }
                 UnitState::Attacking => {
@@ -158,17 +177,32 @@ fn unit_update(
     }
 }
 
+fn update_pos(grid: &GridRenderDebug, info: &UnitInfo, mut transform: &mut Transform){
+    let ratio = (info.time - info.start_time)/ (info.end_time-info.start_time);
+    let x = info.last_x as f32 + ratio * (info.target_x - info.last_x) as f32;
+    let y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
+    transform.translation = grid.pos(x, y);
+}
+
 #[derive(Default)]
 pub struct UnitInfo {
     pub last_x: i32,
     pub last_y: i32,
 
+    pub action_delay: f32,
+
     pub target_x: i32,
     pub target_y: i32,
 
-    pub speed: f32,
-
     pub time: f32,
-    pub next_action: f32,
-    pub action_delay: f32,
+    pub start_time: f32,
+    pub end_time: f32
+}
+
+struct UnitMovingState {
+}
+
+#[derive(Default)]
+pub struct UnitStats {
+    pub speed: f32,
 }

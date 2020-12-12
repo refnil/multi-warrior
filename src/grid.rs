@@ -32,6 +32,18 @@ pub struct GridRenderDebug {
     height: f32,
 }
 
+impl GridRenderDebug {
+    pub fn scale(&self) -> Vec3 {
+        Vec3::new(self.width, self.height, 1.0)
+    }
+
+    pub fn pos(&self, x: f32, y: f32) -> Vec3 {
+        let startx = self.left + self.width * (x + 0.5);
+        let starty = self.bottom + self.height * (y + 0.5);
+        Vec3::new(startx, starty, -starty/10000.0)
+    }
+}
+
 pub struct GridRenderDebugNode {
     x: i32,
     y: i32,
@@ -99,11 +111,9 @@ fn update_grid_transform(
     for (node, mut transform) in query.iter_mut() {
         let nodex = node.x as f32;
         let nodey = node.y as f32;
-        let startx = info.left + info.width * (nodex + 0.5);
-        let starty = info.bottom + info.height * (nodey + 0.5);
 
-        transform.translation = Vec3::new(startx, starty, 0.0);
-        transform.scale = Vec3::new(info.width, info.height, 1.0);
+        transform.translation = info.pos(nodex, nodey);
+        transform.scale = info.scale();
     }
 }
 
@@ -118,8 +128,7 @@ fn update_grid_color(
             GridStatus::Neutral => &grid_debug.nothing_color,
             GridStatus::Friend => &grid_debug.friend_color,
             GridStatus::Enemy => &grid_debug.enemy_color,
-        };
-
+        }; 
         if *material != *target_material {
             *material = target_material.clone();
         }

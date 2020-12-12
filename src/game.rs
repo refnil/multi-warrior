@@ -17,7 +17,7 @@ impl Plugin for Game {
             .add_plugin(GridPlugin::default())
             .add_plugin(InputPlugin::default())
             .add_plugin(ButtonPlugin::default())
-            .add_resource(Grid::new(3, 5))
+            .add_resource(Grid::new(10, 10))
             .add_startup_system(init_cameras.system())
             .add_startup_system(add_some_friend_and_enemy.system())
             .add_startup_system(spawn_unit.system())
@@ -52,20 +52,27 @@ fn spawn_unit(
     let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    UnitBundle {
-        spritesheet: SpriteSheetBundle {
-            texture_atlas: texture_atlas_handle,
-            transform: Transform::from_scale(Vec3::splat(6.0)),
-            ..Default::default()
-        },
-        unit_info: UnitInfo {
-            last_x: 1,
-            last_y: 1,
-            ..Default::default()
-        },
-        unit_state: UnitState::Moving(crate::unit::Direction::Right),
+    for i in 0..6 {
+        for j in 0..6 {
+        UnitBundle {
+            spritesheet: SpriteSheetBundle {
+                texture_atlas: texture_atlas_handle.clone(),
+                transform: Transform::from_scale(Vec3::splat(3.0)),
+                ..Default::default()
+            },
+            unit_info: UnitInfo {
+                last_x: 2*i,
+                last_y: 2*j,
+                target_x: 2*i,
+                target_y: 2*j,
+                action_delay: 2.0 + ((i+1) as f32*(j+1) as f32).sin(),
+                ..Default::default()
+            },
+            unit_state: UnitState::Moving(crate::unit::Direction::Right),
+        }
+        .build(commands);
+        }
     }
-    .build(commands);
     let unit = commands.current_entity().unwrap();
 
     spawner.spawn_button(commands, "Left".to_string(), None);

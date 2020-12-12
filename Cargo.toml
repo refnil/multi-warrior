@@ -13,5 +13,3 @@ coz = "0.1"
 
 [profile.release]
 debug = 1
-
-
