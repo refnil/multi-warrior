@@ -40,7 +40,7 @@ impl GridRenderDebug {
     pub fn pos(&self, x: f32, y: f32) -> Vec3 {
         let startx = self.left + self.width * (x + 0.5);
         let starty = self.bottom + self.height * (y + 0.5);
-        Vec3::new(startx, starty, -starty/10000.0)
+        Vec3::new(startx, starty, -starty / 10000.0)
     }
 }
 
@@ -49,12 +49,16 @@ struct GridRenderDebugNode;
 pub struct GridTransform {
     pub x: f32,
     pub y: f32,
-    pub update_scale: bool
+    pub update_scale: bool,
 }
 
 impl GridTransform {
     pub fn on(x: i32, y: i32) -> GridTransform {
-        GridTransform { x: x as f32, y: y as f32, update_scale: true }
+        GridTransform {
+            x: x as f32,
+            y: y as f32,
+            update_scale: true,
+        }
     }
 }
 
@@ -86,7 +90,7 @@ fn init_render_grid(commands: &mut Commands, grid: Res<Grid>) {
                 ..Default::default()
             });
             commands.with(GridRenderDebugNode);
-            commands.with(GridTransform::on(x,y));
+            commands.with(GridTransform::on(x, y));
         }
     }
 }
@@ -116,12 +120,12 @@ fn update_grid_render_debug(
 
 fn update_grid_transform(
     info: Res<GridRenderDebug>,
-    mut query: Query<(&GridTransform, &mut Transform), Changed<GridTransform>>
+    mut query: Query<(&GridTransform, &mut Transform), Changed<GridTransform>>,
 ) {
     for (node, mut transform) in query.iter_mut() {
         transform.translation = info.pos(node.x, node.y);
         if node.update_scale {
-        transform.scale = info.scale();
+            transform.scale = info.scale();
         }
     }
 }
@@ -129,7 +133,10 @@ fn update_grid_transform(
 fn update_grid_color(
     grid: Res<Grid>,
     grid_debug: Res<GridRenderDebug>,
-    mut query: Query<(&GridTransform, &mut Handle<ColorMaterial>, &mut Visible), With<GridRenderDebugNode>>,
+    mut query: Query<
+        (&GridTransform, &mut Handle<ColorMaterial>, &mut Visible),
+        With<GridRenderDebugNode>,
+    >,
 ) {
     for (node, mut material, mut draw) in query.iter_mut() {
         let status = grid.get_status(node.x as i32, node.y as i32);
@@ -137,7 +144,7 @@ fn update_grid_color(
             GridStatus::Neutral => &grid_debug.nothing_color,
             GridStatus::Friend => &grid_debug.friend_color,
             GridStatus::Enemy => &grid_debug.enemy_color,
-        }; 
+        };
         if *material != *target_material {
             *material = target_material.clone();
         }
