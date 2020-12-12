@@ -7,13 +7,14 @@ use crate::grid::*;
 pub struct UnitPlugin;
 
 impl Plugin for UnitPlugin {
-    fn build(&self, app: &mut AppBuilder){
-        app.add_resource(AnimTimer { timer: Timer::from_seconds(0.1, true) })
-           //.add_system(move_unit_system.system())
-           .add_system(unit_update.system())
-           .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
-           .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system())
-        ;
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_resource(AnimTimer {
+            timer: Timer::from_seconds(0.1, true),
+        })
+        //.add_system(move_unit_system.system())
+        .add_system(unit_update.system())
+        .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
+        .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
     }
 }
 
@@ -35,20 +36,21 @@ fn animate_sprite_system(
 pub struct UnitBundle {
     pub spritesheet: SpriteSheetBundle,
     pub unit_info: UnitInfo,
-    pub unit_state: UnitState
+    pub unit_state: UnitState,
 }
 
 impl UnitBundle {
-    pub fn build(self, commands: &mut Commands) {
-        commands.spawn(self.spritesheet)
+    pub fn build(self, commands: &mut Commands) -> &mut Commands{
+        commands
+            .spawn(self.spritesheet)
             .with(self.unit_info)
             .with(self.unit_state.get_animation())
-            .with(self.unit_state);
+            .with(self.unit_state)
     }
 }
 
 struct AnimTimer {
-    timer: Timer
+    timer: Timer,
 }
 
 struct Animation {
@@ -65,7 +67,7 @@ pub enum UnitState {
 
 impl UnitState {
     fn get_animation(&self) -> Animation {
-       let frames = match self {
+        let frames = match self {
             Self::Still(Direction::Down) => vec![1],
             Self::Still(Direction::Right) => vec![7],
             Self::Still(Direction::Up) => vec![10],
@@ -75,20 +77,16 @@ impl UnitState {
             Self::Moving(Direction::Right) => vec![7, 8, 7, 6],
             Self::Moving(Direction::Up) => vec![10, 11, 10, 9],
             Self::Moving(Direction::Left) => vec![4, 5, 4, 3],
-            _ => panic!("get_animate: {:?}", self)
-       };
-       Animation {
-           current_frame: 0,
-           frames: frames
-       }
+            _ => panic!("get_animate: {:?}", self),
+        };
+        Animation {
+            current_frame: 0,
+            frames: frames,
+        }
     }
 }
 
-fn update_animation_from_state(
-    mut query: Query<
-        (&UnitState, &mut Animation),
-        Changed<UnitState>
-    >){
+fn update_animation_from_state(mut query: Query<(&UnitState, &mut Animation), Changed<UnitState>>) {
     for (state, mut animation) in query.iter_mut() {
         *animation = state.get_animation();
     }
@@ -105,7 +103,7 @@ pub enum Direction {
     Up,
     Left,
     Right,
-    Down
+    Down,
 }
 
 impl Direction {
@@ -114,7 +112,7 @@ impl Direction {
             Direction::Up => Direction::Left,
             Direction::Left => Direction::Down,
             Direction::Down => Direction::Right,
-            Direction::Right => Direction::Up
+            Direction::Right => Direction::Up,
         }
     }
 
@@ -123,7 +121,7 @@ impl Direction {
             Direction::Up => 0,
             Direction::Left => -1,
             Direction::Down => 0,
-            Direction::Right => 1
+            Direction::Right => 1,
         }
     }
 
@@ -132,7 +130,7 @@ impl Direction {
             Direction::Up => 1,
             Direction::Left => 0,
             Direction::Down => -1,
-            Direction::Right => 0
+            Direction::Right => 0,
         }
     }
 }
@@ -146,11 +144,9 @@ impl Default for Direction {
 fn unit_update(
     time: Res<Time>,
     grid_proj: Res<GridRenderDebug>,
-    mut query: Query<
-        (&mut UnitState, &mut UnitInfo, &mut Transform)
-        >,
-        ){
-    for (mut state, mut info, mut transform) in query.iter_mut(){
+    mut query: Query<(&mut UnitState, &mut UnitInfo, &mut Transform), With<TurningAI>>,
+) {
+    for (mut state, mut info, mut transform) in query.iter_mut() {
         info.time += time.delta_seconds();
         update_pos(&grid_proj, &info, &mut transform);
         if info.time > info.end_time {
@@ -170,15 +166,15 @@ fn unit_update(
                     UnitState::Still(dir.clone())
                 }
                 UnitState::Attacking => {
-                    panic!("Attacking is not done yet");
+                    panic!("TurningAI doesn't attack.");
                 }
             };
         }
     }
 }
 
-fn update_pos(grid: &GridRenderDebug, info: &UnitInfo, mut transform: &mut Transform){
-    let ratio = (info.time - info.start_time)/ (info.end_time-info.start_time);
+fn update_pos(grid: &GridRenderDebug, info: &UnitInfo, mut transform: &mut Transform) {
+    let ratio = (info.time - info.start_time) / (info.end_time - info.start_time);
     let x = info.last_x as f32 + ratio * (info.target_x - info.last_x) as f32;
     let y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
     transform.translation = grid.pos(x, y);
@@ -196,13 +192,14 @@ pub struct UnitInfo {
 
     pub time: f32,
     pub start_time: f32,
-    pub end_time: f32
+    pub end_time: f32,
 }
 
-struct UnitMovingState {
-}
+struct UnitMovingState {}
 
 #[derive(Default)]
 pub struct UnitStats {
     pub speed: f32,
 }
+
+pub struct TurningAI;

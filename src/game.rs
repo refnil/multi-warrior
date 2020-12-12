@@ -54,23 +54,24 @@ fn spawn_unit(
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     for i in 0..6 {
         for j in 0..6 {
-        UnitBundle {
-            spritesheet: SpriteSheetBundle {
-                texture_atlas: texture_atlas_handle.clone(),
-                transform: Transform::from_scale(Vec3::splat(3.0)),
-                ..Default::default()
-            },
-            unit_info: UnitInfo {
-                last_x: 2*i,
-                last_y: 2*j,
-                target_x: 2*i,
-                target_y: 2*j,
-                action_delay: 2.0 + ((i+1) as f32*(j+1) as f32).sin(),
-                ..Default::default()
-            },
-            unit_state: UnitState::Moving(crate::unit::Direction::Right),
-        }
-        .build(commands);
+            UnitBundle {
+                spritesheet: SpriteSheetBundle {
+                    texture_atlas: texture_atlas_handle.clone(),
+                    transform: Transform::from_scale(Vec3::splat(3.0)),
+                    ..Default::default()
+                },
+                unit_info: UnitInfo {
+                    last_x: 2 * i,
+                    last_y: 2 * j,
+                    target_x: 2 * i,
+                    target_y: 2 * j,
+                    action_delay: 2.0 + ((i + 1) as f32 * (j + 1) as f32).sin(),
+                    ..Default::default()
+                },
+                unit_state: UnitState::Moving(crate::unit::Direction::Right),
+            }
+            .build(commands)
+            .with(TurningAI);
         }
     }
     let unit = commands.current_entity().unwrap();
