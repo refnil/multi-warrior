@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use rand::random;
 
 use crate::button::*;
 use crate::fps::FPSPlugin;
 use crate::grid::*;
 use crate::input::InputPlugin;
 use crate::unit::*;
+use crate::camera::*;
 
 pub struct Game;
 
@@ -28,19 +28,6 @@ impl Plugin for Game {
             //.add_system(crate::utils::count_query::<(&TextureAtlasSprite,)>.system())
         ;
     }
-}
-
-pub struct MainCamera;
-pub struct UICamera;
-
-fn init_cameras(commands: &mut Commands) {
-    // 2d camera
-    commands.spawn(Camera2dBundle::default());
-    commands.with(MainCamera);
-    // UI camera
-    commands.spawn(CameraUiBundle::default());
-    commands.with(UICamera);
-    // Maybe they should have another component each to differenciate them
 }
 
 #[derive(Clone)]
@@ -69,23 +56,9 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
     grid.add_enemy(x, y);
 }
 
-fn change_grid_randomly(mut grid: ResMut<Grid>) {
-    coz::scope!("change_grid_randomly");
-    let max_x = grid.x as u16;
-    let max_y = grid.y as u16;
-
-    let random_x = (random::<u16>() % max_x) as i32;
-    let random_y = (random::<u16>() % max_y) as i32;
-
-    let random_change = (random::<u16>() % 3) as i32 - 1;
-
-    grid.change_by_count(random_x, random_y, random_change);
-}
 mod test {
     use crate::button::*;
     use crate::game::*;
-    use crate::unit::*;
-    use bevy::prelude::*;
 
     #[allow(dead_code)]
     pub fn spawn_unit(

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::*;
 
-use crate::game::*;
+use crate::camera::*;
 
 #[derive(Default)]
 pub struct GridPlugin;
@@ -98,7 +98,7 @@ fn init_render_grid(commands: &mut Commands, grid: Res<Grid>) {
 fn update_grid_debug_visible(input: Res<Input<KeyCode>>, mut info: ResMut<GridRenderDebug>) {
     if input.just_pressed(KeyCode::G) {
         info.visible = !info.visible;
-        println!("visible {}", info.visible);
+        println!("Changing grid debug visibility to {}", info.visible);
     }
 }
 
@@ -156,6 +156,21 @@ fn update_grid_color(
             draw.is_visible = false;
         }
     }
+}
+
+pub fn change_grid_randomly(mut grid: ResMut<Grid>) {
+    use rand::random;
+
+    coz::scope!("change_grid_randomly");
+    let max_x = grid.x as u16;
+    let max_y = grid.y as u16;
+
+    let random_x = (random::<u16>() % max_x) as i32;
+    let random_y = (random::<u16>() % max_y) as i32;
+
+    let random_change = (random::<u16>() % 3) as i32 - 1;
+
+    grid.change_by_count(random_x, random_y, random_change);
 }
 
 pub struct Grid {
@@ -232,5 +247,33 @@ impl Grid {
             return Some(self.people_by_case[pos]);
         }
         return None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::tests::*;
+    use bevy::prelude::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn change_color_on_g() {
+        App::build()
+            .add_plugin(Test::Frames(100))
+            .add_plugin(GridPlugin)
+            .add_resource(Grid::new(2, 3))
+            .add_system(init_cameras_2d.system())
+            .add_system_to_stage(stage::EVENT, send_g_key.system())
+            .add_system(change_grid_randomly.system())
+            .run();
+    }
+
+    fn send_g_key(mut done: Local<bool>, mut keys: ResMut<Input<KeyCode>>) {
+        if !*done {
+            keys.press(KeyCode::G);
+            *done = true;
+        }
     }
 }

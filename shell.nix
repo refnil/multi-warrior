@@ -50,6 +50,7 @@ in pkgs.mkShell {
     pkgs.cargo-watch
     pkgs.cargo-expand
     pkgs.cargo-cache
+    pkgs.cargo-bloat
     pkgs.aseprite
     wrapCoz
     pkgs.peek
