@@ -254,26 +254,66 @@ impl Grid {
 mod tests {
     use super::*;
     use crate::utils::tests::*;
-    use bevy::prelude::*;
     use serial_test::serial;
+    use std::sync::Arc;
+    use std::sync::Mutex;
 
     #[test]
     #[serial]
     fn change_color_on_g() {
+        let x = 2;
+        let y = 3;
+        let count = Arc::new(Mutex::new(0));
+        let clone = count.clone();
+
         App::build()
-            .add_plugin(Test::Frames(100))
+            .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
-            .add_resource(Grid::new(2, 3))
-            .add_system(init_cameras_2d.system())
-            .add_system_to_stage(stage::EVENT, send_g_key.system())
-            .add_system(change_grid_randomly.system())
+            .add_resource(Grid::new(x, y))
+            .add_system_to_stage(stage::EVENT, send_g_key)
+            .add_system(init_cameras_2d)
+            .add_system(change_grid_randomly)
+            .add_system_to_stage(stage::POST_UPDATE, move |v, d| {
+                assert_node_are_visible((x * y) as usize, v, d)
+            })
+            .add_system_to_stage(stage::POST_UPDATE, move |q| {
+                assert_node_are_changing(clone.clone(), q)
+            })
             .run();
+
+        assert!(*(count.lock().unwrap()) > 0);
     }
 
     fn send_g_key(mut done: Local<bool>, mut keys: ResMut<Input<KeyCode>>) {
         if !*done {
             keys.press(KeyCode::G);
             *done = true;
+        }
+    }
+
+    fn assert_node_are_visible(
+        count: usize,
+        visible_entities: Query<&VisibleEntities>,
+        debug_nodes: Query<&GridRenderDebugNode>,
+    ) {
+        let visible_count = visible_entities
+            .iter()
+            .next()
+            .map(|vis| vis.value.len())
+            .unwrap();
+        let debug_count = debug_nodes.iter().count();
+
+        assert_eq!(visible_count, debug_count);
+        assert_eq!(visible_count, count);
+    }
+
+    fn assert_node_are_changing(
+        changed_count: Arc<Mutex<i32>>,
+        query: Query<&Handle<ColorMaterial>>,
+    ) {
+        if query.iter().len() > 0 {
+            let mut unlock = changed_count.lock().unwrap();
+            *unlock += 1;
         }
     }
 }
