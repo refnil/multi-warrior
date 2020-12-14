@@ -30,21 +30,38 @@ pub mod tests {
             .run();
     }
 
+    #[test]
+    #[serial]
+    fn empty_test_app_with_times() {
+        App::build()
+            .add_plugin(Test::Time(0.5))
+            .run();
+    }
+
     #[derive(Clone)]
     pub enum Test {
         Frames(i32),
+        Time(f32),
     }
 
     impl Test {
         fn system(&self) -> impl System<In = (), Out = ()> {
             match self.clone() {
                 Self::Frames(count) => (move |c, e| Self::frames(count, c, e)).system(),
+                Self::Time(time) => (move |c, t, e| Self::times(time, c, t, e)).system(),
             }
         }
 
         fn frames(max: i32, mut current: Local<i32>, mut exit: ResMut<Events<AppExit>>) {
             *current += 1;
             if max <= *current {
+                exit.send(AppExit);
+            }
+        }
+
+        fn times(end_time: f32, mut current_time: Local<f32>, time: Res<Time>, mut exit: ResMut<Events<AppExit>>) {
+            *current_time += time.delta_seconds();
+            if end_time <= *current_time {
                 exit.send(AppExit);
             }
         }
