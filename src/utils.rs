@@ -10,8 +10,8 @@ pub fn count_query_filter<Q: WorldQuery, F: QueryFilter>(mut query: Query<Q, F>)
     println!("{}: {}", name, query.iter_mut().count());
 }
 
-#[allow(dead_code, unused_mut)]
-pub fn count_query<Q: WorldQuery>(mut query: Query<Q>) {
+#[allow(dead_code)]
+pub fn count_query<Q: WorldQuery>(query: Query<Q>) {
     count_query_filter::<Q, ()>(query);
 }
 
@@ -20,7 +20,7 @@ pub mod tests {
     use bevy::app::*;
     use bevy::prelude::*;
     use bevy::winit::*;
-    use serial_test::serial;
+    pub use serial_test::serial;
 
     #[test]
     #[serial]
