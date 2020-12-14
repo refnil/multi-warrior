@@ -254,7 +254,6 @@ impl Grid {
 mod tests {
     use super::*;
     use crate::utils::tests::*;
-    use serial_test::serial;
     use std::sync::Arc;
     use std::sync::Mutex;
 
@@ -319,21 +318,100 @@ mod tests {
 
     #[test]
     #[serial]
-    fn grid_node_debug_get_updated(){
+    fn grid_node_debug_get_updated() {
         fn move_camera(mut query: Query<&mut Transform, With<MainCamera>>) {
             for mut transform in query.iter_mut() {
                 transform.translation += Vec3::splat(2.0);
             }
         }
-        fn assert_debug_changed(query: Query<Entity, (With<GridRenderDebugNode>, Changed<Transform>)>){
+        fn assert_debug_changed(
+            query: Query<Entity, (With<GridRenderDebugNode>, Changed<Transform>)>,
+        ) {
             assert_ne!(query.iter().count(), 0);
         }
         App::build()
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
-            .add_resource(Grid::new(2,3))
+            .add_resource(Grid::new(2, 3))
             .add_system_to_stage(stage::PRE_UPDATE, move_camera)
             .add_system_to_stage(stage::POST_UPDATE, assert_debug_changed)
             .run()
+    }
+
+    #[test]
+    fn cannot_add_enemy_after_ally() {
+        let x = 3;
+        let y = 4;
+        let mut grid = Grid::new(x, y);
+
+        for i in 0..x {
+            for j in 0..y {
+                assert!(grid.add_friend(i, j), "Friend ({}, {})", i, j);
+                assert!(!grid.add_enemy(i, j), "Enemy ({}, {})", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn cannot_add_ally_after_enemy() {
+        let x = 3;
+        let y = 4;
+        let mut grid = Grid::new(x, y);
+
+        for i in 0..x {
+            for j in 0..y {
+                assert!(grid.add_enemy(i, j), "Enemy ({}, {})", i, j);
+                assert!(!grid.add_friend(i, j), "Friend ({}, {})", i, j);
+            }
+        }
+    }
+
+    #[test]
+    fn grid_get_count_return_get_by_count() {
+        let mut grid = Grid::new(1, 1);
+        let mut expected = 0;
+
+        for i in 1..3 {
+            grid.change_by_count(0, 0, i);
+            expected += i;
+            assert_eq!(grid.get_count(0, 0).unwrap(), expected);
+            assert!(grid.get_status(0, 0).unwrap() == GridStatus::Friend);
+        }
+
+        for i in (-10..-7).rev() {
+            grid.change_by_count(0, 0, i);
+            expected += i;
+            assert_eq!(grid.get_count(0, 0).unwrap(), expected);
+            assert!(grid.get_status(0, 0).unwrap() == GridStatus::Enemy);
+        }
+    }
+
+    #[test]
+    fn grid_to_pos_is_none_on_empty_grid() {
+        let grid = Grid::new(0, 0);
+        for x in -2..2 {
+            for y in -2..2 {
+                assert!(grid.to_pos(x, y).is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn grid_to_pos_is_some_only_on_valid_indices() {
+        let x = 5;
+        let y = 8;
+        let grid = Grid::new(x, y);
+        for i in -2..(x + 3) {
+            for j in -2..(y + 3) {
+                let inside_grid = i >= 0 && i < x && j >= 0 && j < y;
+                assert_eq!(
+                    grid.to_pos(i, j).is_some(),
+                    inside_grid,
+                    "Error on position x:{} y:{}",
+                    i,
+                    j
+                );
+            }
+        }
     }
 }
