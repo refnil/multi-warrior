@@ -316,4 +316,24 @@ mod tests {
             *unlock += 1;
         }
     }
+
+    #[test]
+    #[serial]
+    fn grid_node_debug_get_updated(){
+        fn move_camera(mut query: Query<&mut Transform, With<MainCamera>>) {
+            for mut transform in query.iter_mut() {
+                transform.translation += Vec3::splat(2.0);
+            }
+        }
+        fn assert_debug_changed(query: Query<Entity, (With<GridRenderDebugNode>, Changed<Transform>)>){
+            assert_ne!(query.iter().count(), 0);
+        }
+        App::build()
+            .add_plugin(Test::Frames(10))
+            .add_plugin(GridPlugin)
+            .add_resource(Grid::new(2,3))
+            .add_system_to_stage(stage::PRE_UPDATE, move_camera)
+            .add_system_to_stage(stage::POST_UPDATE, assert_debug_changed)
+            .run()
+    }
 }
