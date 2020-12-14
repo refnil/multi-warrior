@@ -215,23 +215,43 @@ impl ButtonSpawner {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
-    #[allow(dead_code)]
-    pub fn setup(
+    use crate::camera::*;
+    use crate::utils::tests::*;
+
+    pub fn create_n_buttons(
+        button_count: i32,
         commands: &mut Commands,
         spawner: Res<ButtonSpawner>,
         mut materials: ResMut<Assets<ColorMaterial>>,
     ) {
-        let mat =
+        let mut mat =
             ButtonMaterials::from_colors(&mut *materials, Color::RED, Color::GREEN, Color::BLUE);
-
-        let mat2 =
+        let mut mat2 =
             ButtonMaterials::from_colors(&mut *materials, Color::TEAL, Color::PURPLE, Color::GRAY);
-        spawner.spawn_button(commands, "Coucou".to_string(), Some(mat.clone()));
-        spawner.spawn_button(commands, "Coucou2".to_string(), Some(mat2.clone()));
-        spawner.spawn_button(commands, "Coucou1".to_string(), Some(mat2.clone()));
-        spawner.spawn_button(commands, "Coucou3".to_string(), Some(mat2.clone()));
-        spawner.spawn_button(commands, "Coucou4".to_string(), Some(mat2.clone()));
+
+        for i in 0..button_count {
+            spawner.spawn_button(commands, format!("Coucou {}", i), Some(mat.clone()));
+            std::mem::swap(&mut mat,&mut mat2);
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn spawn_some_button(){
+        let button_number = 4;
+        let assert_6_buttons = move |query: Query<&Button>|{
+            let button_found = query.iter().len();
+            assert_eq!(button_found, button_number, "{} button found, {} expected", button_found, button_number);
+        };
+        App::build()
+            .add_plugin(Test::Frames(2))
+            .add_plugin(ButtonPlugin)
+            .add_startup_system(init_cameras_ui)
+            .add_startup_system((move |c, s, m| { create_n_buttons(button_number as i32, c, s, m) }).system())
+            .add_system(assert_6_buttons)
+            .run()
     }
 }
