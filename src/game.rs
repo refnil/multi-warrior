@@ -30,7 +30,7 @@ impl Plugin for Game {
             .add_plugin(ButtonPlugin::default())
             .add_resource(Grid::new(10, 10))
             .add_startup_system(init_cameras)
-            .add_startup_system(spawn_one_unit)
+            .add_startup_system(init_stuff)
 
             //.add_system(change_grid_randomly.system())
             .add_system(on_button_click.system())
@@ -40,18 +40,22 @@ impl Plugin for Game {
     }
 }
 
-fn spawn_one_unit(
+fn init_stuff(
     commands: &mut Commands,
     asset_server: ResMut<AssetServer>,
-    grid: ResMut<Grid>,
-    texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut grid: ResMut<Grid>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
-    spawn_unit(commands, asset_server,grid,  texture_atlases, 2, 2, false)
-    .with(MoveOnForceAI {
-        ally: false,
-        //stick_to_target: true,
-        ..Default::default()
-    });
+    for i in 1..8 {
+        spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, i, i, false)
+        .with(MoveOnForceAI {
+            ally: false,
+            target_x: (i ^ 2) % 10,
+            target_y: (i ^ 3) % 10,
+            //stick_to_target: true,
+            ..Default::default()
+        });
+    }
 }
 
 #[derive(Clone)]

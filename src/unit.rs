@@ -316,15 +316,15 @@ pub struct MoveOnForceAI {
     pub stick_to_target: bool,
 }
 
-pub fn spawn_unit<G, TA>(
-    commands: &mut Commands,
-    asset_server: impl Deref<Target = AssetServer>,
-    mut grid: G,
-    mut texture_atlases: TA,
+pub fn spawn_unit<'a, G, TA>(
+    commands: &'a mut Commands,
+    asset_server: &impl Deref<Target = AssetServer>,
+    grid: &mut G,
+    texture_atlases: &mut TA,
     x: i32,
     y: i32,
     ally: bool,
-) -> &mut Commands
+) -> &'a mut Commands
 where
     G: Deref<Target = Grid> + DerefMut,
     TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
@@ -382,10 +382,10 @@ mod tests {
             commands: &mut Commands,
             asset_server: ResMut<AssetServer>,
             mut grid: ResMut<Grid>,
-            texture_atlases: ResMut<Assets<TextureAtlas>>,
+            mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_enemy(1, 0);
-            spawn_unit(commands, asset_server, grid, texture_atlases, 0, 0, true).with(
+            spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, 0, 0, true).with(
                 MoveOnForceAI {
                     ally: true,
                     ..Default::default()
@@ -410,10 +410,10 @@ mod tests {
             commands: &mut Commands,
             asset_server: ResMut<AssetServer>,
             mut grid: ResMut<Grid>,
-            texture_atlases: ResMut<Assets<TextureAtlas>>,
+            mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_friend(0, 1);
-            spawn_unit(commands, asset_server, grid, texture_atlases, 0, 0, false).with(
+            spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, 0, 0, false).with(
                 MoveOnForceAI {
                     ally: false,
                     ..Default::default()
