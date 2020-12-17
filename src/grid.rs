@@ -180,11 +180,21 @@ pub struct Grid {
     pub y: i32,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum GridStatus {
     Friend,
     Neutral,
     Enemy,
+}
+
+impl GridStatus {
+    pub fn from_force(ally: bool) -> Self {
+        if ally {
+            Self::Friend
+        } else {
+            Self::Enemy
+        }
+    }
 }
 
 impl Grid {
@@ -251,6 +261,8 @@ impl Grid {
         }
         return None;
     }
+
+    pub fn find_nearest_ally(&self) {}
 }
 
 #[cfg(test)]

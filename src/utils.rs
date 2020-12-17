@@ -39,13 +39,15 @@ pub mod tests {
     pub enum Test {
         Frames(i32),
         Time(f32),
+        NoStop,
     }
 
     impl Test {
-        fn system(&self) -> impl System<In = (), Out = ()> {
+        fn system(&self) -> Option<impl System<In = (), Out = ()>> {
             match self.clone() {
-                Self::Frames(count) => (move |c, e| Self::frames(count, c, e)).system(),
-                Self::Time(time) => (move |c, t, e| Self::times(time, c, t, e)).system(),
+                Self::Frames(count) => Some((move |c, e| Self::frames(count, c, e)).system()),
+                Self::Time(time) => Some((move |c, t, e| Self::times(time, c, t, e)).system()),
+                Self::NoStop => None
             }
         }
 
@@ -77,7 +79,9 @@ pub mod tests {
                 return_from_run: true,
                 ignore_unknown_window_id: true,
             });
-            app.add_system_to_stage(stage::POST_UPDATE, self.system());
+            if let Some(system) = self.system() {
+                app.add_system_to_stage(stage::POST_UPDATE, system);
+            }
         }
     }
 
