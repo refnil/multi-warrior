@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 use bevy::tasks::prelude::*;
 
+use rand::*;
+use std::ops::{Deref, DerefMut};
+
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -72,6 +75,15 @@ struct Animation {
 pub enum UnitState {
     Still(Direction),
     Moving(Direction),
+}
+
+impl UnitState {
+    pub fn is_still(&self) -> bool {
+        match self {
+            Self::Still(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl UnitState {
@@ -196,11 +208,22 @@ fn move_on_ai_force_update(
         &mut UnitState,
         &mut UnitInfo,
         &mut GridTransform,
-        &MoveOnForceAI,
+        &mut MoveOnForceAI,
     )>,
 ) {
-    for (unit_time, mut state, mut info, mut transform, force) in query.iter_mut() {
+    for (unit_time, mut state, mut info, mut transform, mut force) in query.iter_mut() {
         update_pos(&unit_time, &info, &mut transform);
+
+        if state.is_still() && info.last_x == force.target_x && info.last_y == force.target_y {
+            if force.stick_to_target {
+                continue;
+            } else {
+                force.target_x = random::<i32>().abs() % grid.x;
+                force.target_y = random::<i32>().abs() % grid.y;
+                println!("target {} {}", force.target_x, force.target_y);
+            }
+        }
+
         if unit_time.time > info.end_time {
             info.start_time = unit_time.time;
             info.end_time = unit_time.time + info.action_delay;
@@ -212,12 +235,20 @@ fn move_on_ai_force_update(
             *state = match &*state {
                 UnitState::Still(dir) => {
                     let mut potential_pos: Option<(Direction, i32, i32)> = None;
+                    let mut pos_distance = i32::MAX;
                     for d in Direction::iter() {
                         let x = info.last_x + d.x();
                         let y = info.last_y + d.y();
                         if let Some(status) = grid.get_status(x, y) {
                             if status == status_wanted || status == GridStatus::Neutral {
-                                potential_pos = Some((d, x, y));
+                                let distance =
+                                    (force.target_x - x).abs() + (force.target_y - y).abs();
+                                if distance < pos_distance {
+                                    potential_pos = Some((d, x, y));
+                                    pos_distance = distance;
+                                } else if distance == pos_distance && random::<bool>() {
+                                    potential_pos = Some((d, x, y));
+                                }
                             }
                         }
                     }
@@ -238,7 +269,7 @@ fn move_on_ai_force_update(
                     info.last_x = info.target_x;
                     info.last_y = info.target_y;
 
-                    UnitState::Still(dir.next().next())
+                    UnitState::Still(dir.clone())
                 }
             };
         }
@@ -276,6 +307,127 @@ pub struct UnitStats {
 }
 
 pub struct TurningAI;
+
+#[derive(Default)]
 pub struct MoveOnForceAI {
     pub ally: bool,
+    pub target_x: i32,
+    pub target_y: i32,
+    pub stick_to_target: bool,
+}
+
+pub fn spawn_unit<G, TA>(
+    commands: &mut Commands,
+    asset_server: impl Deref<Target = AssetServer>,
+    mut grid: G,
+    mut texture_atlases: TA,
+    x: i32,
+    y: i32,
+    ally: bool,
+) -> &mut Commands
+where
+    G: Deref<Target = Grid> + DerefMut,
+    TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
+{
+
+    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    UnitBundle {
+        spritesheet: SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle.clone(),
+            transform: Transform::from_scale(Vec3::splat(3.0)),
+            ..Default::default()
+        },
+        unit_info: UnitInfo {
+            last_x: x,
+            last_y: y,
+            target_x: x,
+            target_y: y,
+            action_delay: 0.40,
+            ..Default::default()
+        },
+        unit_state: UnitState::Moving(crate::unit::Direction::Right),
+    }
+    .build(commands);
+
+    grid.get_count(x, y)
+        .expect("Expected valid position for the new unit");
+    grid.change_by_count(x, y, if ally { 1 } else { -1 });
+
+    commands
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::camera::init_cameras_2d;
+    use crate::utils::tests::*;
+
+    fn assert_stay_on_0_0(query: Query<&UnitInfo>) {
+        let iter = query.iter();
+        assert_eq!(iter.len(), 1, "Expected 1 unit, got {}", iter.len());
+        for info in iter {
+            assert_eq!(info.last_x, 0, "Expected units to have last_x = 0");
+            assert_eq!(info.last_y, 0, "Expected units to have last_y = 0");
+            assert_eq!(info.target_x, 0, "Expected units to have target_x = 0");
+            assert_eq!(info.target_y, 0, "Expected units to have target_y = 0");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn move_on_force_ally_wont_go_on_enemy() {
+        fn init(
+            commands: &mut Commands,
+            asset_server: ResMut<AssetServer>,
+            mut grid: ResMut<Grid>,
+            texture_atlases: ResMut<Assets<TextureAtlas>>,
+        ) {
+            grid.add_enemy(1, 0);
+            spawn_unit(commands, asset_server, grid, texture_atlases, 0, 0, true).with(
+                MoveOnForceAI {
+                    ally: true,
+                    ..Default::default()
+                },
+            );
+        }
+        App::build()
+            .add_plugin(Test::Frames(10))
+            .add_plugin(GridPlugin)
+            .add_plugin(UnitPlugin)
+            .add_system(init_cameras_2d)
+            .add_resource(Grid::new(2, 1))
+            .add_startup_system(init)
+            .add_system(assert_stay_on_0_0)
+            .run();
+    }
+
+    #[test]
+    #[serial]
+    fn move_on_force_enemy_wont_go_on_ally() {
+        fn init(
+            commands: &mut Commands,
+            asset_server: ResMut<AssetServer>,
+            mut grid: ResMut<Grid>,
+            texture_atlases: ResMut<Assets<TextureAtlas>>,
+        ) {
+            grid.add_friend(0, 1);
+            spawn_unit(commands, asset_server, grid, texture_atlases, 0, 0, false).with(
+                MoveOnForceAI {
+                    ally: false,
+                    ..Default::default()
+                },
+            );
+        }
+        App::build()
+            .add_plugin(Test::Frames(10))
+            .add_plugin(GridPlugin)
+            .add_plugin(UnitPlugin)
+            .add_system(init_cameras_2d)
+            .add_resource(Grid::new(2, 1))
+            .add_startup_system(init)
+            .add_system(assert_stay_on_0_0)
+            .run();
+    }
 }

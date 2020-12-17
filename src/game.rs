@@ -4,19 +4,19 @@
 use bevy::prelude::*;
 
 mod button;
+mod camera;
 mod fps;
 mod grid;
 mod input;
 mod unit;
 mod utils;
-mod camera;
 
 use button::*;
+use camera::*;
 use fps::FPSPlugin;
 use grid::*;
 use input::InputPlugin;
 use unit::*;
-use camera::*;
 
 pub struct Game;
 
@@ -29,16 +29,29 @@ impl Plugin for Game {
             .add_plugin(InputPlugin::default())
             .add_plugin(ButtonPlugin::default())
             .add_resource(Grid::new(10, 10))
-            .add_startup_system(init_cameras.system())
-            .add_startup_system(add_some_friend_and_enemy.system())
-            .add_startup_system(test::spawn_unit.system())
+            .add_startup_system(init_cameras)
+            .add_startup_system(spawn_one_unit)
 
-            .add_system(change_grid_randomly.system())
+            //.add_system(change_grid_randomly.system())
             .add_system(on_button_click.system())
 
             //.add_system(crate::utils::count_query::<(&TextureAtlasSprite,)>.system())
         ;
     }
+}
+
+fn spawn_one_unit(
+    commands: &mut Commands,
+    asset_server: ResMut<AssetServer>,
+    grid: ResMut<Grid>,
+    texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    spawn_unit(commands, asset_server,grid,  texture_atlases, 2, 2, false)
+    .with(MoveOnForceAI {
+        ally: false,
+        //stick_to_target: true,
+        ..Default::default()
+    });
 }
 
 #[derive(Clone)]
@@ -60,43 +73,8 @@ fn on_button_click(
     }
 }
 
-fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
-    grid.add_friend(0, 0);
-    let x = grid.x - 1;
-    let y = grid.y - 1;
-    grid.add_enemy(x, y);
-}
-
-mod test {
+mod tests {
     use super::*;
-
-    pub fn spawn_unit(
-        commands: &mut Commands,
-        asset_server: Res<AssetServer>,
-        mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    ) {
-        let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
-        let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
-        let texture_atlas_handle = texture_atlases.add(texture_atlas);
-        UnitBundle {
-            spritesheet: SpriteSheetBundle {
-                texture_atlas: texture_atlas_handle.clone(),
-                transform: Transform::from_scale(Vec3::splat(3.0)),
-                ..Default::default()
-            },
-            unit_info: UnitInfo {
-                last_x: 2,
-                last_y: 2,
-                target_x: 2,
-                target_y: 2,
-                action_delay: 1.0,
-                ..Default::default()
-            },
-            unit_state: UnitState::Moving(crate::unit::Direction::Right),
-        }
-        .build(commands)
-        .with(MoveOnForceAI { ally: false });
-    }
 
     #[allow(dead_code)]
     pub fn spawn_dancing_unit(

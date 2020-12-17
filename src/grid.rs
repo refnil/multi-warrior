@@ -158,6 +158,7 @@ fn update_grid_color(
     }
 }
 
+#[allow(dead_code)]
 pub fn change_grid_randomly(mut grid: ResMut<Grid>) {
     use rand::random;
 
@@ -203,6 +204,7 @@ impl Grid {
         }
     }
 
+    #[allow(dead_code)]
     pub fn add_friend(self: &mut Grid, x: i32, y: i32) -> bool {
         if let Some(pos) = self.to_pos(x, y) {
             if self.people_by_case[pos] >= 0 {
@@ -213,6 +215,7 @@ impl Grid {
         return false;
     }
 
+    #[allow(dead_code)]
     pub fn add_enemy(self: &mut Grid, x: i32, y: i32) -> bool {
         if let Some(pos) = self.to_pos(x, y) {
             if self.people_by_case[pos] <= 0 {
@@ -414,4 +417,5 @@ mod tests {
             }
         }
     }
+
 }
