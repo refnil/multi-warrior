@@ -6,6 +6,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "multi_warrior_lib"
+path = "src/game.rs"
+
+[[bin]]
+name = "multi_warrior"
+path = "src/main.rs"
+
 [dependencies]
 #bevy = { git = "https://github.com/bevyengine/bevy" }
 bevy = { git = "https://github.com/refnil/bevy" }

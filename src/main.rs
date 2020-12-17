@@ -1,14 +1,9 @@
-use bevy::prelude::*;
+//! # Multi warrior documentation
+//! You will find more documentation in the [multi_warrior_lib]
 
-mod button;
-mod fps;
-mod game;
-mod grid;
-mod input;
-mod unit;
-mod utils;
-mod camera;
+use bevy::prelude::*;
+use multi_warrior_lib::Game;
 
 fn main() {
-    App::build().add_plugin(game::Game).run();
+    App::build().add_plugin(Game).run();
 }

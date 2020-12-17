@@ -71,7 +71,7 @@ pub mod tests {
         fn build(&self, app: &mut AppBuilder) {
             app.add_plugins(NoLogPlugins);
             app.set_runner(winit_runner_any_thread);
-            app.add_resource(WinitConfig { return_from_run: true, });
+            app.add_resource(WinitConfig { return_from_run: true, ignore_unknown_window_id: true});
             app.add_system_to_stage(stage::POST_UPDATE, self.system());
         }
     }

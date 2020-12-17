@@ -1,11 +1,22 @@
+//! # Multi warrior library
+//!
+//! The plugin Game is the main one and include everything else needed to run the game.
 use bevy::prelude::*;
 
-use crate::button::*;
-use crate::fps::FPSPlugin;
-use crate::grid::*;
-use crate::input::InputPlugin;
-use crate::unit::*;
-use crate::camera::*;
+mod button;
+mod fps;
+mod grid;
+mod input;
+mod unit;
+mod utils;
+mod camera;
+
+use button::*;
+use fps::FPSPlugin;
+use grid::*;
+use input::InputPlugin;
+use unit::*;
+use camera::*;
 
 pub struct Game;
 
@@ -57,10 +68,8 @@ fn add_some_friend_and_enemy(mut grid: ResMut<Grid>) {
 }
 
 mod test {
-    use crate::button::*;
-    use crate::game::*;
+    use super::*;
 
-    #[allow(dead_code)]
     pub fn spawn_unit(
         commands: &mut Commands,
         asset_server: Res<AssetServer>,
