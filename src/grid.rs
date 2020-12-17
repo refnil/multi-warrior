@@ -98,7 +98,7 @@ fn init_render_grid(commands: &mut Commands, grid: Res<Grid>) {
 fn update_grid_debug_visible(input: Res<Input<KeyCode>>, mut info: ResMut<GridRenderDebug>) {
     if input.just_pressed(KeyCode::G) {
         info.visible = !info.visible;
-        println!("Changing grid debug visibility to {}", info.visible);
+        info!("Changing grid debug visibility to {}", info.visible);
     }
 }
 

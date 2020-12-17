@@ -220,7 +220,7 @@ fn move_on_ai_force_update(
             } else {
                 force.target_x = random::<i32>().abs() % grid.x;
                 force.target_y = random::<i32>().abs() % grid.y;
-                println!("target {} {}", force.target_x, force.target_y);
+                info!("Target {} {}", force.target_x, force.target_y);
             }
         }
 

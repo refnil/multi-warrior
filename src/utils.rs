@@ -7,7 +7,7 @@ pub use std;
 #[allow(dead_code)]
 pub fn count_query_filter<Q: WorldQuery, F: QueryFilter>(mut query: Query<Q, F>) {
     let name = std::any::type_name::<Q>();
-    println!("{}: {}", name, query.iter_mut().count());
+    info!("{}: {}", name, query.iter_mut().count());
 }
 
 #[allow(dead_code)]
