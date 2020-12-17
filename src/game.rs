@@ -47,7 +47,15 @@ fn init_stuff(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
     for i in 1..8 {
-        spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, i, i, false)
+        spawn_unit(
+            commands,
+            &asset_server,
+            &mut grid,
+            &mut texture_atlases,
+            i,
+            i,
+            false,
+        )
         .with(MoveOnForceAI {
             ally: false,
             target_x: (i ^ 2) % 10,

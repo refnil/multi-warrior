@@ -234,23 +234,29 @@ mod test {
 
         for i in 0..button_count {
             spawner.spawn_button(commands, format!("Coucou {}", i), Some(mat.clone()));
-            std::mem::swap(&mut mat,&mut mat2);
+            std::mem::swap(&mut mat, &mut mat2);
         }
     }
 
     #[test]
     #[serial]
-    fn spawn_some_button(){
+    fn spawn_some_button() {
         let button_number = 4;
-        let assert_6_buttons = move |query: Query<&Button>|{
+        let assert_6_buttons = move |query: Query<&Button>| {
             let button_found = query.iter().len();
-            assert_eq!(button_found, button_number, "{} button found, {} expected", button_found, button_number);
+            assert_eq!(
+                button_found, button_number,
+                "{} button found, {} expected",
+                button_found, button_number
+            );
         };
         App::build()
             .add_plugin(Test::Frames(2))
             .add_plugin(ButtonPlugin)
             .add_startup_system(init_cameras_ui)
-            .add_startup_system((move |c, s, m| { create_n_buttons(button_number as i32, c, s, m) }).system())
+            .add_startup_system(
+                (move |c, s, m| create_n_buttons(button_number as i32, c, s, m)).system(),
+            )
             .add_system(assert_6_buttons)
             .run()
     }

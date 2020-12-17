@@ -25,17 +25,13 @@ pub mod tests {
     #[test]
     #[serial]
     fn empty_test_app_with_frames() {
-        App::build()
-            .add_plugin(Test::Frames(5))
-            .run();
+        App::build().add_plugin(Test::Frames(5)).run();
     }
 
     #[test]
     #[serial]
     fn empty_test_app_with_times() {
-        App::build()
-            .add_plugin(Test::Time(0.5))
-            .run();
+        App::build().add_plugin(Test::Time(0.5)).run();
     }
 
     #[derive(Clone)]
@@ -59,7 +55,12 @@ pub mod tests {
             }
         }
 
-        fn times(end_time: f32, mut current_time: Local<f32>, time: Res<Time>, mut exit: ResMut<Events<AppExit>>) {
+        fn times(
+            end_time: f32,
+            mut current_time: Local<f32>,
+            time: Res<Time>,
+            mut exit: ResMut<Events<AppExit>>,
+        ) {
             *current_time += time.delta_seconds();
             if end_time <= *current_time {
                 exit.send(AppExit);
@@ -71,7 +72,10 @@ pub mod tests {
         fn build(&self, app: &mut AppBuilder) {
             app.add_plugins(NoLogPlugins);
             app.set_runner(winit_runner_any_thread);
-            app.add_resource(WinitConfig { return_from_run: true, ignore_unknown_window_id: true});
+            app.add_resource(WinitConfig {
+                return_from_run: true,
+                ignore_unknown_window_id: true,
+            });
             app.add_system_to_stage(stage::POST_UPDATE, self.system());
         }
     }

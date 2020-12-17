@@ -329,7 +329,6 @@ where
     G: Deref<Target = Grid> + DerefMut,
     TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
 {
-
     let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
@@ -385,12 +384,19 @@ mod tests {
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_enemy(1, 0);
-            spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, 0, 0, true).with(
-                MoveOnForceAI {
-                    ally: true,
-                    ..Default::default()
-                },
-            );
+            spawn_unit(
+                commands,
+                &asset_server,
+                &mut grid,
+                &mut texture_atlases,
+                0,
+                0,
+                true,
+            )
+            .with(MoveOnForceAI {
+                ally: true,
+                ..Default::default()
+            });
         }
         App::build()
             .add_plugin(Test::Frames(10))
@@ -413,12 +419,19 @@ mod tests {
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_friend(0, 1);
-            spawn_unit(commands, &asset_server, &mut grid, &mut texture_atlases, 0, 0, false).with(
-                MoveOnForceAI {
-                    ally: false,
-                    ..Default::default()
-                },
-            );
+            spawn_unit(
+                commands,
+                &asset_server,
+                &mut grid,
+                &mut texture_atlases,
+                0,
+                0,
+                false,
+            )
+            .with(MoveOnForceAI {
+                ally: false,
+                ..Default::default()
+            });
         }
         App::build()
             .add_plugin(Test::Frames(10))
