@@ -44,6 +44,7 @@ pub struct UnitBundle {
     pub spritesheet: SpriteSheetBundle,
     pub unit_info: UnitInfo,
     pub unit_state: UnitState,
+    pub unit_stats: UnitStats,
 }
 
 impl UnitBundle {
@@ -59,6 +60,7 @@ impl UnitBundle {
                 y: 0.0,
                 update_scale: false,
             })
+            .with(self.unit_stats)
     }
 }
 
@@ -205,13 +207,14 @@ fn move_on_ai_force_update(
     mut grid: ResMut<Grid>,
     mut query: Query<(
         &UnitTime,
+        &UnitStats,
         &mut UnitState,
         &mut UnitInfo,
         &mut GridTransform,
         &mut MoveOnForceAI,
     )>,
 ) {
-    for (unit_time, mut state, mut info, mut transform, mut force) in query.iter_mut() {
+    for (unit_time, stats, mut state, mut info, mut transform, mut force) in query.iter_mut() {
         update_pos(&unit_time, &info, &mut transform);
 
         if state.is_still() && info.last_x == force.target_x && info.last_y == force.target_y {
@@ -260,6 +263,7 @@ fn move_on_ai_force_update(
                         info.target_x = x;
                         info.target_y = y;
 
+                        info.end_time = unit_time.time + (info.action_delay/stats.speed);
                         UnitState::Moving(d)
                     } else {
                         UnitState::Still(dir.next())
@@ -347,6 +351,7 @@ where
             ..Default::default()
         },
         unit_state: UnitState::Moving(crate::unit::Direction::Right),
+        unit_stats: UnitStats { speed: x as f32},
     }
     .build(commands);
 

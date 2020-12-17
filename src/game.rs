@@ -115,6 +115,7 @@ mod tests {
                         ..Default::default()
                     },
                     unit_state: UnitState::Moving(crate::unit::Direction::Right),
+                    unit_stats: UnitStats { speed: 1.0 },
                 }
                 .build(commands)
                 .with(TurningAI);
