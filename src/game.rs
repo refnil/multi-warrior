@@ -57,7 +57,6 @@ fn init_stuff(
             false,
         )
         .with(MoveOnForceAI {
-            ally: false,
             target_x: (i ^ 2) % 10,
             target_y: (i ^ 3) % 10,
             //stick_to_target: true,
@@ -115,7 +114,10 @@ mod tests {
                         ..Default::default()
                     },
                     unit_state: UnitState::Moving(crate::unit::Direction::Right),
-                    unit_stats: UnitStats { move_speed: 1.0, ..Default::default() },
+                    unit_stats: UnitStats {
+                        move_speed: 1.0,
+                        ..Default::default()
+                    },
                 }
                 .build(commands)
                 .with(TurningAI);

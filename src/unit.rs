@@ -36,32 +36,35 @@ pub struct DamageEvent {
     pub from: bool,
 }
 
-fn damage_event_reader(mut damage_events: ResMut<Events<DamageEvent>>, 
-                       mut query: Query<(&UnitInfo, &mut UnitStats)>) {
+fn damage_event_reader(
+    mut damage_events: ResMut<Events<DamageEvent>>,
+    mut query: Query<(&UnitInfo, &mut UnitStats)>,
+) {
     damage_events.update();
     let mut reader = damage_events.get_reader();
 
     for event in reader.iter(&damage_events) {
         info!("Damage done: {:?}", event);
-        if let Some((_,mut stats)) = query.iter_mut().find(|(info, _)| info.last_x == event.x && info.last_y == event.y)
-        { 
+        if let Some((_, mut stats)) = query
+            .iter_mut()
+            .find(|(info, _)| info.last_x == event.x && info.last_y == event.y)
+        {
             stats.life -= 1;
-        }
-        else {
+        } else {
             info!("Did not find unit to damage");
         }
     }
-
 }
 
 fn remove_dead_unit(
     commands: &mut Commands,
-    grid: ResMut<Grid>,
-    query: Query<(Entity, &UnitStats), Changed<UnitStats>>,
+    mut grid: ResMut<Grid>,
+    query: Query<(Entity, &UnitStats, &UnitForce, &UnitInfo), Changed<UnitStats>>,
 ) {
-    for (entity, stats) in query.iter() {
+    for (entity, stats, force, info) in query.iter() {
         if stats.life <= 0 {
             commands.despawn(entity);
+            grid.change_by_count(info.target_x, info.target_y, -force.as_int());
         }
     }
 }
@@ -303,37 +306,34 @@ fn move_on_ai_force_update(
         &mut UnitInfo,
         &mut GridTransform,
         &mut MoveOnForceAI,
+        &UnitForce,
     )>,
 ) {
-    for (unit_time, stats, mut state, mut info, mut transform, mut force) in query.iter_mut() {
+    for (unit_time, stats, mut state, mut info, mut transform, mut ai, force) in query.iter_mut() {
         update_pos(&unit_time, &info, &mut transform);
 
-        if state.is_still() && info.last_x == force.target_x && info.last_y == force.target_y {
-            if force.stick_to_target {
+        if state.is_still() && info.last_x == ai.target_x && info.last_y == ai.target_y {
+            if ai.stick_to_target {
                 continue;
             } else {
-                force.target_x = random::<i32>().abs() % grid.x;
-                force.target_y = random::<i32>().abs() % grid.y;
-                info!("Target {} {}", force.target_x, force.target_y);
+                ai.target_x = random::<i32>().abs() % grid.x;
+                ai.target_y = random::<i32>().abs() % grid.y;
+                info!("Target {} {}", ai.target_x, ai.target_y);
             }
         }
 
         if unit_time.time > info.end_time {
             info.start_time = unit_time.time;
             info.end_time = unit_time.time + info.action_delay;
-            let status_wanted = if force.ally {
-                GridStatus::Friend
-            } else {
-                GridStatus::Enemy
-            };
+            let status_wanted = force.as_grid_status();
             *state = match &*state {
                 UnitState::Still(dir) => {
                     let potential_pos = find_potential_pos(
                         &grid,
                         info.last_x,
                         info.last_y,
-                        force.target_x,
-                        force.target_y,
+                        ai.target_x,
+                        ai.target_y,
                         status_wanted,
                     );
 
@@ -399,19 +399,38 @@ impl Default for UnitStats {
     }
 }
 
+pub struct UnitForce {
+    pub ally: bool,
+}
+
+impl UnitForce {
+    fn as_int(&self) -> i32 {
+        if self.ally {
+            1
+        } else {
+            -1
+        }
+    }
+
+    fn as_grid_status(&self) -> GridStatus {
+        if self.ally {
+            GridStatus::Friend
+        } else {
+            GridStatus::Enemy
+        }
+    }
+}
+
 pub struct TurningAI;
 
 #[derive(Default)]
 pub struct MoveOnForceAI {
-    pub ally: bool,
     pub target_x: i32,
     pub target_y: i32,
     pub stick_to_target: bool,
 }
 
-pub struct AttackingAI {
-    pub ally: bool,
-}
+pub struct AttackingAI;
 
 #[derive(Debug)]
 pub enum AttackingAIState {
@@ -465,22 +484,22 @@ fn enemy_in_range() {
     assert_eq!(find_enemy_in_range(&grid, 1, 1, false, 1), vec![]);
     assert_eq!(find_enemy_in_range(&grid, 0, 0, false, 1), vec![]);
 
-    assert_eq!(find_enemy_in_range(&grid, 1, 0, false, 1), vec![(1, 1)]);
-    assert_eq!(find_enemy_in_range(&grid, 0, 1, false, 1), vec![(1, 1)]);
+    assert_eq!(find_enemy_in_range(&grid, 1, 0, true, 1), vec![(1, 1)]);
+    assert_eq!(find_enemy_in_range(&grid, 0, 1, true, 1), vec![(1, 1)]);
     grid = Grid::new(5, 5);
     grid.add_friend(3, 3);
     for i in 0..6 {
-        assert_eq!(find_enemy_in_range(&grid, 0, 0, true, i), vec![]);
+        assert_eq!(find_enemy_in_range(&grid, 0, 0, false, i), vec![]);
     }
 
     for i in 6..25 {
-        assert_eq!(find_enemy_in_range(&grid, 0, 0, true, i), vec![(3, 3)]);
+        assert_eq!(find_enemy_in_range(&grid, 0, 0, false, i), vec![(3, 3)]);
     }
 
     grid.add_friend(3, 4);
     grid.add_friend(4, 3);
 
-    let mut final_test = find_enemy_in_range(&grid, 0, 0, true, 8);
+    let mut final_test = find_enemy_in_range(&grid, 0, 0, false, 8);
     final_test.sort();
     assert_eq!(final_test, vec![(3, 3), (3, 4), (4, 3)]);
 }
@@ -488,17 +507,21 @@ fn enemy_in_range() {
 pub fn update_attacking_ai(
     mut grid: ResMut<Grid>,
     mut damage_events: ResMut<Events<DamageEvent>>,
-    mut query: Query<(
-        &AttackingAI,
-        &mut AttackingAIState,
-        &mut UnitInfo,
-        &UnitStats,
-        &UnitTime,
-        &mut UnitState,
-        &mut GridTransform,
-    )>,
+    mut query: Query<
+        (
+            &mut AttackingAIState,
+            &mut UnitInfo,
+            &UnitStats,
+            &UnitTime,
+            &UnitForce,
+            &mut UnitState,
+            &mut GridTransform,
+        ),
+        With<AttackingAI>,
+    >,
 ) {
-    for (ai, mut state, mut info, stats, time, mut anim_state, mut transform) in query.iter_mut() {
+    for (mut state, mut info, stats, time, force, mut anim_state, mut transform) in query.iter_mut()
+    {
         update_pos(&time, &info, &mut transform);
 
         // Do I need to do something else?
@@ -507,7 +530,7 @@ pub fn update_attacking_ai(
         }
 
         // Find an enemy that is 1 cell away since it is useful in all cases
-        let enemy_close = find_enemy_in_range(&grid, info.last_x, info.last_y, ai.ally, 1)
+        let enemy_close = find_enemy_in_range(&grid, info.last_x, info.last_y, force.ally, 1)
             .iter()
             .next()
             .cloned();
@@ -519,7 +542,7 @@ pub fn update_attacking_ai(
                     damage_events.send(DamageEvent {
                         x: enemy_x,
                         y: enemy_y,
-                        from: ai.ally,
+                        from: force.ally,
                     });
                     AttackingAIState::AfterAttack
                 } else {
@@ -565,9 +588,9 @@ pub fn update_attacking_ai(
 
             AttackingAIState::MoveToNearestEnemy => {
                 if let Some((enemy_x, enemy_y)) =
-                        find_enemy_in_range(&grid, info.last_x, info.last_y, ai.ally, 1000)
-                            .iter()
-                            .next()
+                    find_enemy_in_range(&grid, info.last_x, info.last_y, force.ally, 1000)
+                        .iter()
+                        .next()
                 {
                     let (d, x, y) = find_potential_pos(
                         &grid,
@@ -575,10 +598,10 @@ pub fn update_attacking_ai(
                         info.last_y,
                         enemy_x.clone(),
                         enemy_y.clone(),
-                        GridStatus::from_force(ai.ally),
+                        force.as_grid_status(),
                     )
                     .unwrap();
-                    grid_info_move_to(&mut grid, &mut info, x, y, ai.ally);
+                    grid_info_move_to(&mut grid, &mut info, x, y, force.ally);
                     (1.0 / stats.move_speed, UnitState::Moving(d))
                 } else {
                     (1.0, UnitState::Still(Direction::Down))
@@ -586,7 +609,10 @@ pub fn update_attacking_ai(
             }
         };
 
-        info!("Change state: {} {} {:?}", info.start_time, info.end_time, new_state);
+        info!(
+            "Change state: {} {} {:?}",
+            info.start_time, info.end_time, new_state
+        );
         info.start_time = time.time;
         info.end_time = time.time + delay;
         *anim_state = new_anim_state;
@@ -627,7 +653,8 @@ where
         unit_state: UnitState::Moving(crate::unit::Direction::Right),
         unit_stats: Default::default(),
     }
-    .build(commands);
+    .build(commands)
+    .with(UnitForce { ally: ally });
 
     grid.get_count(x, y)
         .expect("Expected valid position for the new unit");
@@ -675,10 +702,7 @@ mod tests {
                 0,
                 true,
             )
-            .with(MoveOnForceAI {
-                ally: true,
-                ..Default::default()
-            });
+            .with(MoveOnForceAI::default());
         }
         App::build()
             .add_plugin(Test::Frames(10))
@@ -710,10 +734,7 @@ mod tests {
                 0,
                 false,
             )
-            .with(MoveOnForceAI {
-                ally: false,
-                ..Default::default()
-            });
+            .with(MoveOnForceAI::default());
         }
         App::build()
             .add_plugin(Test::Frames(10))
@@ -744,7 +765,7 @@ mod tests {
                 0,
                 true,
             )
-            .with(AttackingAI { ally: true })
+            .with(AttackingAI)
             .with(AttackingAIState::MoveToNearestEnemy);
 
             spawn_unit(
@@ -756,7 +777,7 @@ mod tests {
                 3,
                 false,
             )
-            .with(AttackingAI { ally: false })
+            .with(AttackingAI)
             .with(AttackingAIState::MoveToNearestEnemy);
         }
 
@@ -776,8 +797,7 @@ mod tests {
         let copy = own.clone();
 
         App::build()
-            .add_plugin(Test::Time(4.0))
-            .add_plugin(bevy::log::LogPlugin)
+            .add_plugin(Test::Time(15.0))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
@@ -790,6 +810,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn dead_unit_are_removed_from_grid() {
         fn init(
             commands: &mut Commands,
@@ -806,15 +827,15 @@ mod tests {
                 0,
                 true,
             )
-            .with(AttackingAI { ally: true })
+            .with(AttackingAI)
             .with(AttackingAIState::MoveToNearestEnemy)
             .with(UnitStats {
-                life:0,
+                life: 0,
                 ..Default::default()
             });
         }
 
-        fn check_grid_when_no_unit(grid: Res<Grid>, units: Query<&UnitStats>){
+        fn check_grid_when_no_unit(grid: Res<Grid>, units: Query<&UnitStats>) {
             if units.iter().len() > 0 {
                 return;
             }
