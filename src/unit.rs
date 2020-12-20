@@ -22,7 +22,8 @@ impl Plugin for UnitPlugin {
         .add_system(turning_ai_update.system())
         .add_system(move_on_ai_force_update.system())
         .add_system(update_attacking_ai)
-        .add_system(simple_damage_event_reader)
+        .add_system(damage_event_reader)
+        .add_system(remove_dead_unit)
         .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
         .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
     }
@@ -35,10 +36,33 @@ pub struct DamageEvent {
     pub from: bool,
 }
 
-fn simple_damage_event_reader(damage_events: Res<Events<DamageEvent>>) {
+fn damage_event_reader(mut damage_events: ResMut<Events<DamageEvent>>, 
+                       mut query: Query<(&UnitInfo, &mut UnitStats)>) {
+    damage_events.update();
     let mut reader = damage_events.get_reader();
+
     for event in reader.iter(&damage_events) {
         info!("Damage done: {:?}", event);
+        if let Some((_,mut stats)) = query.iter_mut().find(|(info, _)| info.last_x == event.x && info.last_y == event.y)
+        { 
+            stats.life -= 1;
+        }
+        else {
+            info!("Did not find unit to damage");
+        }
+    }
+
+}
+
+fn remove_dead_unit(
+    commands: &mut Commands,
+    grid: ResMut<Grid>,
+    query: Query<(Entity, &UnitStats), Changed<UnitStats>>,
+) {
+    for (entity, stats) in query.iter() {
+        if stats.life <= 0 {
+            commands.despawn(entity);
+        }
     }
 }
 
@@ -389,6 +413,7 @@ pub struct AttackingAI {
     pub ally: bool,
 }
 
+#[derive(Debug)]
 pub enum AttackingAIState {
     PrepareAttack,
     AfterAttack,
@@ -398,15 +423,15 @@ pub enum AttackingAIState {
 fn find_enemy_in_range(grid: &Grid, x: i32, y: i32, ally: bool, range: i32) -> Vec<(i32, i32)> {
     let mut result = Vec::new();
     let mut push = |(n_x, n_y)| {
-        if ally && grid.get_status(n_x, n_y) == Some(GridStatus::Friend) {
+        if ally && grid.get_status(n_x, n_y) == Some(GridStatus::Enemy) {
             result.push((n_x, n_y));
-        } else if !ally && grid.get_status(n_x, n_y) == Some(GridStatus::Enemy) {
+        } else if !ally && grid.get_status(n_x, n_y) == Some(GridStatus::Friend) {
             result.push((n_x, n_y))
         }
     };
 
     for cur_range in 1..=range {
-        let x_range = (x + -cur_range + 1).max(0)..=(x + cur_range - 1).min(grid.x);
+        let x_range = (x + -cur_range + 1).max(0)..=(x + cur_range - 1).min(grid.x - 1);
 
         for r_x in x_range {
             let r_y = cur_range - (x - r_x).abs();
@@ -419,6 +444,15 @@ fn find_enemy_in_range(grid: &Grid, x: i32, y: i32, ally: bool, range: i32) -> V
     }
 
     result
+}
+#[test]
+fn find_enemy_in_corner() {
+    let mut grid = Grid::new(4, 4);
+    grid.add_friend(0, 0);
+    grid.add_enemy(3, 3);
+
+    assert_eq!(find_enemy_in_range(&grid, 0, 0, true, 10), vec![(3, 3)]);
+    assert_eq!(find_enemy_in_range(&grid, 3, 3, false, 10), vec![(0, 0)]);
 }
 
 #[test]
@@ -468,7 +502,7 @@ pub fn update_attacking_ai(
         update_pos(&time, &info, &mut transform);
 
         // Do I need to do something else?
-        if info.end_time < time.time {
+        if info.end_time > time.time {
             continue;
         }
 
@@ -531,9 +565,9 @@ pub fn update_attacking_ai(
 
             AttackingAIState::MoveToNearestEnemy => {
                 if let Some((enemy_x, enemy_y)) =
-                    find_enemy_in_range(&grid, info.last_x, info.last_y, ai.ally, 1000)
-                        .iter()
-                        .next()
+                        find_enemy_in_range(&grid, info.last_x, info.last_y, ai.ally, 1000)
+                            .iter()
+                            .next()
                 {
                     let (d, x, y) = find_potential_pos(
                         &grid,
@@ -552,6 +586,8 @@ pub fn update_attacking_ai(
             }
         };
 
+        info!("Change state: {} {} {:?}", info.start_time, info.end_time, new_state);
+        info.start_time = time.time;
         info.end_time = time.time + delay;
         *anim_state = new_anim_state;
         *state = new_state;
@@ -585,7 +621,7 @@ where
             last_y: y,
             target_x: x,
             target_y: y,
-            action_delay: 0.40,
+            action_delay: 1.0,
             ..Default::default()
         },
         unit_state: UnitState::Moving(crate::unit::Direction::Right),
@@ -729,13 +765,18 @@ mod tests {
                 let mut unlock = flag.lock().unwrap();
                 *unlock = true;
             }
+
+            if query.iter().len() == 0 {
+                let mut unlock = flag.lock().unwrap();
+                *unlock = false;
+            }
         }
 
         let own = Arc::new(Mutex::new(false));
         let copy = own.clone();
 
         App::build()
-            .add_plugin(Test::NoStop)
+            .add_plugin(Test::Time(4.0))
             .add_plugin(bevy::log::LogPlugin)
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
@@ -743,6 +784,67 @@ mod tests {
             .add_resource(Grid::new(4, 4))
             .add_startup_system(init)
             .add_system(move |q| check_unit_count(copy.clone(), q))
+            .run();
+
+        assert!(*(own.lock().unwrap()));
+    }
+
+    #[test]
+    fn dead_unit_are_removed_from_grid() {
+        fn init(
+            commands: &mut Commands,
+            asset_server: Res<AssetServer>,
+            mut grid: ResMut<Grid>,
+            mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+        ) {
+            spawn_unit(
+                commands,
+                &asset_server,
+                &mut grid,
+                &mut texture_atlases,
+                0,
+                0,
+                true,
+            )
+            .with(AttackingAI { ally: true })
+            .with(AttackingAIState::MoveToNearestEnemy)
+            .with(UnitStats {
+                life:0,
+                ..Default::default()
+            });
+        }
+
+        fn check_grid_when_no_unit(grid: Res<Grid>, units: Query<&UnitStats>){
+            if units.iter().len() > 0 {
+                return;
+            }
+            for x in 0..grid.x {
+                for y in 0..grid.y {
+                    assert_eq!(grid.get_status(x, y).unwrap(), GridStatus::Neutral);
+                }
+            }
+        }
+
+        fn expect_0_unit(flag: Arc<Mutex<bool>>, query: Query<&UnitStats>) {
+            if query.iter().len() == 0 {
+                let mut unlock = flag.lock().unwrap();
+                *unlock = true;
+            }
+        }
+
+        let own = Arc::new(Mutex::new(false));
+        let copy = own.clone();
+
+        App::build()
+            .add_plugin(Test::Frames(3))
+            .add_plugin(bevy::log::LogPlugin)
+            .add_plugin(GridPlugin)
+            .add_plugin(UnitPlugin)
+            .add_system(init_cameras_2d)
+            .add_resource(Grid::new(4, 4))
+            .add_startup_system(init)
+            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit)
+            .add_system_to_stage(stage::POST_UPDATE, move |q| expect_0_unit(copy.clone(), q))
             .run();
 
         assert!(*(own.lock().unwrap()));
