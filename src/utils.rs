@@ -11,7 +11,7 @@ pub use std;
 #[allow(dead_code)]
 pub fn count_query_filter<Q: WorldQuery, F: QueryFilter>(mut query: Query<Q, F>) {
     let name = std::any::type_name::<Q>();
-    info!("{}: {}", name, query.iter_mut().count());
+    println!("{}: {}", name, query.iter_mut().count());
 }
 
 #[allow(dead_code)]
@@ -105,6 +105,7 @@ pub mod tests {
     }
 
     impl Test {
+        pub fn debug(self) -> Self { Self::NoStop }
         fn system(&self) -> Option<impl System<In = (), Out = ()>> {
             match self.clone() {
                 Self::Frames(count) => Some((move |c, e| Self::frames(count, c, e)).system()),
@@ -147,6 +148,8 @@ pub mod tests {
         }
     }
 
+    // Test system
+    // Test event
     pub struct TestCheck<T> {
         val: T,
         test: Vec<fn(&T) -> bool>,

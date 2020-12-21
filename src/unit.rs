@@ -272,7 +272,7 @@ pub struct UnitForce {
 }
 
 impl UnitForce {
-    fn as_int(&self) -> i32 {
+    pub fn as_int(&self) -> i32 {
         if self.ally {
             1
         } else {
@@ -280,7 +280,7 @@ impl UnitForce {
         }
     }
 
-    fn as_grid_status(&self) -> GridStatus {
+    pub fn as_grid_status(&self) -> GridStatus {
         if self.ally {
             GridStatus::Friend
         } else {
