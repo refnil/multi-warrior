@@ -4,28 +4,22 @@ use bevy::tasks::prelude::*;
 use rand::*;
 use std::ops::{Deref, DerefMut};
 
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
-
+use crate::anim::*;
 use crate::grid::*;
+use crate::utils::{Direction, *};
 
 #[derive(Default)]
 pub struct UnitPlugin;
 
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(AnimTimer {
-            timer: Timer::from_seconds(0.1, true),
-        })
-        .init_resource::<Events<DamageEvent>>()
-        .add_system(add_time_on_unit_info.system())
-        .add_system(turning_ai_update.system())
-        .add_system(move_on_ai_force_update.system())
-        .add_system(update_attacking_ai)
-        .add_system(damage_event_reader)
-        .add_system(remove_dead_unit)
-        .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
-        .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
+        app.init_resource::<Events<DamageEvent>>()
+            .add_system(add_time_on_unit_info.system())
+            .add_system(turning_ai_update.system())
+            .add_system(move_on_ai_force_update.system())
+            .add_system(update_attacking_ai)
+            .add_system(damage_event_reader)
+            .add_system(remove_dead_unit);
     }
 }
 
@@ -34,6 +28,31 @@ pub struct DamageEvent {
     pub x: i32,
     pub y: i32,
     pub from: bool,
+}
+
+#[derive(Default)]
+pub struct UnitBundle {
+    pub spritesheet: SpriteSheetBundle,
+    pub unit_info: UnitInfo,
+    pub unit_state: UnitState,
+    pub unit_stats: UnitStats,
+}
+
+impl UnitBundle {
+    pub fn build(self, commands: &mut Commands) -> &mut Commands {
+        commands
+            .spawn(self.spritesheet)
+            .with(self.unit_info)
+            .with(self.unit_state.get_animation())
+            .with(self.unit_state)
+            .with(UnitTime::default())
+            .with(GridTransform {
+                x: 0.0,
+                y: 0.0,
+                update_scale: false,
+            })
+            .with(self.unit_stats)
+    }
 }
 
 fn damage_event_reader(
@@ -66,158 +85,6 @@ fn remove_dead_unit(
             commands.despawn(entity);
             grid.change_by_count(info.target_x, info.target_y, -force.as_int());
         }
-    }
-}
-
-fn animate_sprite_system(
-    time: Res<Time>,
-    mut timer: ResMut<AnimTimer>,
-    mut query: Query<(&mut TextureAtlasSprite, &mut Animation)>,
-) {
-    timer.timer.tick(time.delta_seconds());
-    if timer.timer.just_finished() {
-        for (mut sprite, mut animation) in query.iter_mut() {
-            animation.current_frame = (animation.current_frame + 1) % animation.frames.len() as u32;
-            sprite.index = animation.frames[animation.current_frame as usize];
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct UnitBundle {
-    pub spritesheet: SpriteSheetBundle,
-    pub unit_info: UnitInfo,
-    pub unit_state: UnitState,
-    pub unit_stats: UnitStats,
-}
-
-impl UnitBundle {
-    pub fn build(self, commands: &mut Commands) -> &mut Commands {
-        commands
-            .spawn(self.spritesheet)
-            .with(self.unit_info)
-            .with(self.unit_state.get_animation())
-            .with(self.unit_state)
-            .with(UnitTime::default())
-            .with(GridTransform {
-                x: 0.0,
-                y: 0.0,
-                update_scale: false,
-            })
-            .with(self.unit_stats)
-    }
-}
-
-struct AnimTimer {
-    timer: Timer,
-}
-
-struct Animation {
-    current_frame: u32,
-    frames: Vec<u32>,
-}
-
-#[derive(Debug, Clone)]
-pub enum UnitState {
-    Still(Direction),
-    Moving(Direction),
-}
-
-impl UnitState {
-    pub fn is_still(&self) -> bool {
-        match self {
-            Self::Still(_) => true,
-            _ => false,
-        }
-    }
-}
-
-impl UnitState {
-    fn get_animation(&self) -> Animation {
-        let frames = match self {
-            Self::Still(Direction::Down) => vec![1],
-            Self::Still(Direction::Right) => vec![7],
-            Self::Still(Direction::Up) => vec![10],
-            Self::Still(Direction::Left) => vec![4],
-
-            Self::Moving(Direction::Down) => vec![1, 2, 1, 0],
-            Self::Moving(Direction::Right) => vec![7, 8, 7, 6],
-            Self::Moving(Direction::Up) => vec![10, 11, 10, 9],
-            Self::Moving(Direction::Left) => vec![4, 5, 4, 3],
-        };
-        Animation {
-            current_frame: 0,
-            frames: frames,
-        }
-    }
-}
-
-fn update_animation_from_state(mut query: Query<(&UnitState, &mut Animation), Changed<UnitState>>) {
-    for (state, mut animation) in query.iter_mut() {
-        *animation = state.get_animation();
-    }
-}
-
-impl Default for UnitState {
-    fn default() -> Self {
-        Self::Still(Direction::default())
-    }
-}
-
-#[derive(Debug, Copy, Clone, EnumIter)]
-pub enum Direction {
-    Up,
-    Left,
-    Right,
-    Down,
-}
-
-impl Direction {
-    fn next(&self) -> Self {
-        match self {
-            Direction::Up => Direction::Left,
-            Direction::Left => Direction::Down,
-            Direction::Down => Direction::Right,
-            Direction::Right => Direction::Up,
-        }
-    }
-
-    fn x(&self) -> i32 {
-        match self {
-            Direction::Up => 0,
-            Direction::Left => -1,
-            Direction::Down => 0,
-            Direction::Right => 1,
-        }
-    }
-
-    fn y(&self) -> i32 {
-        match self {
-            Direction::Up => 1,
-            Direction::Left => 0,
-            Direction::Down => -1,
-            Direction::Right => 0,
-        }
-    }
-
-    fn from_points(x1: i32, y1: i32, x2: i32, y2: i32) -> Self {
-        let x_diff = (x1 - x2).abs();
-        let x_dir = if x1 < x2 { Self::Right } else { Self::Left };
-
-        let y_diff = (y1 - y2).abs();
-        let y_dir = if y1 < y2 { Self::Up } else { Self::Down };
-
-        if x_diff < y_diff {
-            x_dir
-        } else {
-            y_dir
-        }
-    }
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Self::Down
     }
 }
 
@@ -668,7 +535,6 @@ mod tests {
     use super::*;
     use crate::camera::init_cameras_2d;
     use crate::utils::tests::*;
-    use crate::utils::*;
     use std::sync::Arc;
     use std::sync::Mutex;
 

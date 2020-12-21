@@ -3,6 +3,7 @@
 //! The plugin Game is the main one and include everything else needed to run the game.
 use bevy::prelude::*;
 
+mod anim;
 mod button;
 mod camera;
 mod fps;
@@ -11,12 +12,14 @@ mod input;
 mod unit;
 mod utils;
 
+use anim::*;
 use button::*;
 use camera::*;
 use fps::FPSPlugin;
 use grid::*;
 use input::InputPlugin;
 use unit::*;
+use utils::Direction;
 
 pub struct Game;
 
@@ -113,7 +116,7 @@ mod tests {
                         action_delay: 2.0 + ((i + 1) as f32 * (j + 1) as f32).sin(),
                         ..Default::default()
                     },
-                    unit_state: UnitState::Moving(crate::unit::Direction::Right),
+                    unit_state: UnitState::Moving(Direction::Right),
                     unit_stats: UnitStats {
                         move_speed: 1.0,
                         ..Default::default()
@@ -127,22 +130,22 @@ mod tests {
 
         spawner.spawn_button(commands, "Left".to_string(), None);
         commands.with(StateSetter {
-            state: UnitState::Still(crate::unit::Direction::Left),
+            state: UnitState::Still(Direction::Left),
             entity: unit,
         });
         spawner.spawn_button(commands, "Right".to_string(), None);
         commands.with(StateSetter {
-            state: UnitState::Still(crate::unit::Direction::Right),
+            state: UnitState::Still(Direction::Right),
             entity: unit,
         });
         spawner.spawn_button(commands, "Down".to_string(), None);
         commands.with(StateSetter {
-            state: UnitState::Still(crate::unit::Direction::Down),
+            state: UnitState::Still(Direction::Down),
             entity: unit,
         });
         spawner.spawn_button(commands, "Up".to_string(), None);
         commands.with(StateSetter {
-            state: UnitState::Still(crate::unit::Direction::Up),
+            state: UnitState::Still(Direction::Up),
             entity: unit,
         });
     }
