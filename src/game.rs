@@ -11,6 +11,7 @@ mod grid;
 mod input;
 mod unit;
 mod utils;
+mod spawn;
 
 use anim::*;
 use button::*;

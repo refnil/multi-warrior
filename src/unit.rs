@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::tasks::prelude::*;
+use bevy::ecs::*;
 
 use rand::*;
 use std::ops::{Deref, DerefMut};
@@ -484,6 +485,21 @@ pub fn update_attacking_ai(
         info.end_time = time.time + delay;
         *anim_state = new_anim_state;
         *state = new_state;
+    }
+}
+
+#[derive(SystemParam)]
+pub struct SpawnUnitRes<'a> {
+    pub commands: &'a mut Commands,
+    pub asset_server: Res<'a, AssetServer>,
+    pub grid: ResMut<'a, Grid>,
+    pub texture_atlases: ResMut<'a, Assets<TextureAtlas>>,
+}
+
+impl<'a> SpawnUnitRes<'a> {
+    pub fn spawn_unit(&mut self, x: i32, y: i32, ally: bool) -> &mut Self{
+        spawn_unit(self.commands, &self.asset_server, &mut self.grid, &mut self.texture_atlases, x, y, ally);
+        self
     }
 }
 
