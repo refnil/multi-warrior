@@ -460,17 +460,19 @@ pub fn update_attacking_ai(
                         .iter()
                         .next()
                 {
-                    let (d, x, y) = find_potential_pos(
+                    if let Some((d, x, y)) = find_potential_pos(
                         &grid,
                         info.last_x,
                         info.last_y,
                         enemy_x.clone(),
                         enemy_y.clone(),
-                        force.as_grid_status(),
-                    )
-                    .unwrap();
-                    grid_info_move_to(&mut grid, &mut info, x, y, force.ally);
-                    (1.0 / stats.move_speed, UnitState::Moving(d))
+                        GridStatus::Neutral,
+                    ) {
+                        grid_info_move_to(&mut grid, &mut info, x, y, force.ally);
+                        (1.0 / stats.move_speed, UnitState::Moving(d))
+                    } else {
+                        (1.0, UnitState::Still(Direction::Down))
+                    }
                 } else {
                     (1.0, UnitState::Still(Direction::Down))
                 }
@@ -524,7 +526,12 @@ where
     G: Deref<Target = Grid> + DerefMut,
     TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
 {
-    let texture_handle = asset_server.load("spritesheet/Female/Female 12-3.png");
+    let path = if ally {
+        "spritesheet/Female/Female 12-3.png"
+    } else {
+        "spritesheet/Soldier/Soldier 01-1.png"
+    };
+    let texture_handle = asset_server.load(path);
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     UnitBundle {
@@ -637,6 +644,7 @@ mod tests {
 
     #[test]
     #[serial]
+    #[ignore]
     fn battle_of_two_warriors() {
         fn init(
             commands: &mut Commands,
@@ -736,7 +744,6 @@ mod tests {
 
         App::build()
             .add_plugin(Test::Frames(3))
-            .add_plugin(bevy::log::LogPlugin)
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
