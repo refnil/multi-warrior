@@ -27,8 +27,7 @@ impl SpawnInfo {
             .get_status(self.x, self.y)
             .map(|gs| gs == GridStatus::Neutral)
             .unwrap_or(false);
-        let count = count_of_force
-            < self.target_unit_count.unwrap_or(u32::MAX);
+        let count = count_of_force < self.target_unit_count.unwrap_or(u32::MAX);
         let time =
             self.last_spawn + self.spawn_delay.unwrap_or(0.0) < time.seconds_since_startup() as f32;
         status && count && time
@@ -56,8 +55,7 @@ fn spawn_info_system(
     for force in count_force.iter() {
         if force.ally {
             good += 1;
-        }
-        else {
+        } else {
             bad += 1;
         }
     }
@@ -126,17 +124,28 @@ mod tests {
 
     #[test]
     #[serial]
-    fn battle_of_two_spawners() {
-        fn setup_scene(commands: &mut Commands) {
+    fn small_battle() {
+        battle_of_two_spawners(3, 1.2, 2);
+    }
+
+    #[test]
+    #[serial]
+    #[ignore]
+    fn big_battle() {
+        battle_of_two_spawners(10, 3.1416, 10);
+    }
+
+    fn battle_of_two_spawners(size: i32, delay: f32, units: u32) {
+        let setup_scene = move |commands: &mut Commands| {
             commands
                 .spawn((
                     SpawnInfo {
                         ally: true,
                         last_spawn: f32::MIN,
-                        spawn_delay: Some(1.2),
-                        target_unit_count: Some(2),
+                        spawn_delay: Some(delay),
+                        target_unit_count: Some(units),
                         x: 0,
-                        y: 1,
+                        y: 0,
                     },
                     AttackingAI,
                 ))
@@ -146,23 +155,23 @@ mod tests {
                     SpawnInfo {
                         ally: false,
                         last_spawn: f32::MIN,
-                        spawn_delay: Some(1.2),
-                        target_unit_count: Some(2),
-                        x: 2,
-                        y: 1,
+                        spawn_delay: Some(delay),
+                        target_unit_count: Some(units),
+                        x: size - 1,
+                        y: size - 1,
                     },
                     AttackingAI,
                 ))
                 .with(AttackingAIState::MoveToNearestEnemy);
-        }
+        };
 
         App::build()
-            .add_plugin(Test::Time(1.5))
+            .add_plugin(Test::Time(1.5).debug())
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_plugin(AnimPlugin)
             .add_plugin(SpawnPlugin)
-            .add_resource(Grid::new(3, 3))
+            .add_resource(Grid::new(size, size))
             .add_startup_system(init_cameras_2d)
             .add_startup_system(setup_scene)
             .run();

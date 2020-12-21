@@ -48,8 +48,8 @@ impl UnitBundle {
             .with(self.unit_state)
             .with(UnitTime::default())
             .with(GridTransform {
-                x: 0.0,
-                y: 0.0,
+                x: -1000.0,
+                y: -1000.0,
                 update_scale: false,
             })
             .with(self.unit_stats)
@@ -537,7 +537,11 @@ where
     UnitBundle {
         spritesheet: SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
-            transform: Transform::from_scale(Vec3::splat(3.0)),
+            transform: Transform {
+                translation: Vec3::splat(-100.0),
+                scale: Vec3::splat(3.0),
+                ..Default::default()
+            },
             ..Default::default()
         },
         unit_info: UnitInfo {
@@ -546,7 +550,8 @@ where
             target_x: x,
             target_y: y,
             action_delay: 1.0,
-            ..Default::default()
+            start_time: f32::MAX,
+            end_time: f32::MIN,
         },
         unit_state: UnitState::Moving(crate::unit::Direction::Right),
         unit_stats: Default::default(),
