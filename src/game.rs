@@ -9,9 +9,9 @@ mod camera;
 mod fps;
 mod grid;
 mod input;
+mod spawn;
 mod unit;
 mod utils;
-mod spawn;
 
 use anim::*;
 use button::*;

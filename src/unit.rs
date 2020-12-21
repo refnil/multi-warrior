@@ -1,6 +1,6 @@
+use bevy::ecs::*;
 use bevy::prelude::*;
 use bevy::tasks::prelude::*;
-use bevy::ecs::*;
 
 use rand::*;
 use std::ops::{Deref, DerefMut};
@@ -497,8 +497,16 @@ pub struct SpawnUnitRes<'a> {
 }
 
 impl<'a> SpawnUnitRes<'a> {
-    pub fn spawn_unit(&mut self, x: i32, y: i32, ally: bool) -> &mut Self{
-        spawn_unit(self.commands, &self.asset_server, &mut self.grid, &mut self.texture_atlases, x, y, ally);
+    pub fn spawn_unit(&mut self, x: i32, y: i32, ally: bool) -> &mut Self {
+        spawn_unit(
+            self.commands,
+            &self.asset_server,
+            &mut self.grid,
+            &mut self.texture_atlases,
+            x,
+            y,
+            ally,
+        );
         self
     }
 }
@@ -551,8 +559,6 @@ mod tests {
     use super::*;
     use crate::camera::init_cameras_2d;
     use crate::utils::tests::*;
-    use std::sync::Arc;
-    use std::sync::Mutex;
 
     fn assert_stay_on_0_0(query: Query<&UnitInfo>) {
         let iter = query.iter();
@@ -663,20 +669,15 @@ mod tests {
             .with(AttackingAIState::MoveToNearestEnemy);
         }
 
-        fn check_unit_count(flag: Arc<Mutex<bool>>, query: Query<&UnitState>) {
+        fn check_unit_count(mut flag: ResMut<TestCheck<bool>>, query: Query<&UnitState>) {
             if query.iter().len() == 1 {
-                let mut unlock = flag.lock().unwrap();
-                *unlock = true;
+                **flag = true;
             }
 
             if query.iter().len() == 0 {
-                let mut unlock = flag.lock().unwrap();
-                *unlock = false;
+                **flag = false;
             }
         }
-
-        let own = Arc::new(Mutex::new(false));
-        let copy = own.clone();
 
         App::build()
             .add_plugin(Test::Time(15.0))
@@ -684,11 +685,10 @@ mod tests {
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
             .add_resource(Grid::new(4, 4))
+            .add_resource(TestCheck::new(false).is_true())
             .add_startup_system(init)
-            .add_system(move |q| check_unit_count(copy.clone(), q))
+            .add_system(check_unit_count)
             .run();
-
-        assert!(*(own.lock().unwrap()));
     }
 
     #[test]
@@ -728,15 +728,11 @@ mod tests {
             }
         }
 
-        fn expect_0_unit(flag: Arc<Mutex<bool>>, query: Query<&UnitStats>) {
+        fn expect_0_unit(mut flag: ResMut<TestCheck<bool>>, query: Query<&UnitStats>) {
             if query.iter().len() == 0 {
-                let mut unlock = flag.lock().unwrap();
-                *unlock = true;
+                **flag = true;
             }
         }
-
-        let own = Arc::new(Mutex::new(false));
-        let copy = own.clone();
 
         App::build()
             .add_plugin(Test::Frames(3))
@@ -745,11 +741,10 @@ mod tests {
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
             .add_resource(Grid::new(4, 4))
+            .add_resource(TestCheck::new(false).is_true())
             .add_startup_system(init)
             .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit)
-            .add_system_to_stage(stage::POST_UPDATE, move |q| expect_0_unit(copy.clone(), q))
+            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit)
             .run();
-
-        assert!(*(own.lock().unwrap()));
     }
 }

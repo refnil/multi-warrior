@@ -82,6 +82,8 @@ pub mod tests {
     use bevy::prelude::*;
     use bevy::winit::*;
     pub use serial_test::serial;
+    use std::ops::{Deref, DerefMut};
+    use std::thread;
 
     #[test]
     #[serial]
@@ -141,6 +143,58 @@ pub mod tests {
             });
             if let Some(system) = self.system() {
                 app.add_system_to_stage(stage::POST_UPDATE, system);
+            }
+        }
+    }
+
+    pub struct TestCheck<T> {
+        val: T,
+        test: Vec<fn(&T) -> bool>,
+    }
+
+    impl<T> TestCheck<T> {
+        pub fn new(val: T) -> Self {
+            TestCheck {
+                val: val,
+                test: Vec::new(),
+            }
+        }
+
+        pub fn test(mut self, f: fn(&T) -> bool) -> Self {
+            self.test.push(f);
+            self
+        }
+    }
+
+    impl TestCheck<bool> {
+        fn is_true_inner(val: &bool) -> bool {
+            val.clone()
+        }
+
+        pub fn is_true(self) -> Self {
+            self.test(Self::is_true_inner)
+        }
+    }
+
+    impl<T> Deref for TestCheck<T> {
+        type Target = T;
+        fn deref(&self) -> &T {
+            &self.val
+        }
+    }
+
+    impl<T> DerefMut for TestCheck<T> {
+        fn deref_mut(&mut self) -> &mut T {
+            &mut self.val
+        }
+    }
+
+    impl<T> Drop for TestCheck<T> {
+        fn drop(&mut self) {
+            if !thread::panicking() {
+                for f in self.test.iter() {
+                    assert!(f(&self.val));
+                }
             }
         }
     }

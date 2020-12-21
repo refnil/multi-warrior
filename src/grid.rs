@@ -269,16 +269,16 @@ impl Grid {
 mod tests {
     use super::*;
     use crate::utils::tests::*;
-    use std::sync::Arc;
-    use std::sync::Mutex;
 
     #[test]
     #[serial]
     fn change_color_on_g() {
         let x = 2;
         let y = 3;
-        let count = Arc::new(Mutex::new(0));
-        let clone = count.clone();
+
+        fn bigger_than_0(b: &i32) -> bool {
+            b > &0
+        }
 
         App::build()
             .add_plugin(Test::Frames(10))
@@ -290,12 +290,9 @@ mod tests {
             .add_system_to_stage(stage::POST_UPDATE, move |v, d| {
                 assert_node_are_visible((x * y) as usize, v, d)
             })
-            .add_system_to_stage(stage::POST_UPDATE, move |q| {
-                assert_node_are_changing(clone.clone(), q)
-            })
+            .add_resource(TestCheck::new(0).test(bigger_than_0))
+            .add_system_to_stage(stage::POST_UPDATE, assert_node_are_changing)
             .run();
-
-        assert!(*(count.lock().unwrap()) > 0);
     }
 
     fn send_g_key(mut done: Local<bool>, mut keys: ResMut<Input<KeyCode>>) {
@@ -322,12 +319,11 @@ mod tests {
     }
 
     fn assert_node_are_changing(
-        changed_count: Arc<Mutex<i32>>,
+        mut changed_count: ResMut<TestCheck<i32>>,
         query: Query<&Handle<ColorMaterial>>,
     ) {
         if query.iter().len() > 0 {
-            let mut unlock = changed_count.lock().unwrap();
-            *unlock += 1;
+            **changed_count += 1;
         }
     }
 
