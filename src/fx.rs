@@ -5,8 +5,8 @@ pub struct FxPlugin {
 
 impl Plugin for FxPlugin{
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource<Events<FxSpawnEvent>>()
-            .add_system(spawn_fx_system);
+        app.init_resource::<Events<FxSpawnEvent>>()
+            .add_system(spawn_fx_system.system());
 
     }
 }

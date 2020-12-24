@@ -220,22 +220,34 @@ mod test {
     use super::*;
     use crate::camera::*;
     use crate::utils::tests::*;
+    use bevy::ecs::SystemParam;
 
-    pub fn create_n_buttons(
+    pub fn create_n_buttons<'a>(
         button_count: i32,
-        commands: &mut Commands,
-        spawner: Res<ButtonSpawner>,
-        mut materials: ResMut<Assets<ColorMaterial>>,
-    ) {
-        let mut mat =
-            ButtonMaterials::from_colors(&mut *materials, Color::RED, Color::GREEN, Color::BLUE);
-        let mut mat2 =
-            ButtonMaterials::from_colors(&mut *materials, Color::TEAL, Color::PURPLE, Color::GRAY);
+    ) -> Box<impl Fn(&mut Commands, Res<ButtonSpawner>, ResMut<Assets<ColorMaterial>>)> {
+        Box::new(
+            move |commands: &mut Commands,
+                  spawner: Res<ButtonSpawner>,
+                  mut materials: ResMut<Assets<ColorMaterial>>| {
+                let mut mat = ButtonMaterials::from_colors(
+                    &mut *materials,
+                    Color::RED,
+                    Color::GREEN,
+                    Color::BLUE,
+                );
+                let mut mat2 = ButtonMaterials::from_colors(
+                    &mut *materials,
+                    Color::TEAL,
+                    Color::PURPLE,
+                    Color::GRAY,
+                );
 
-        for i in 0..button_count {
-            spawner.spawn_button(commands, format!("Coucou {}", i), Some(mat.clone()));
-            std::mem::swap(&mut mat, &mut mat2);
-        }
+                for i in 0..button_count {
+                    spawner.spawn_button(commands, format!("Coucou {}", i), Some(mat.clone()));
+                    std::mem::swap(&mut mat, &mut mat2);
+                }
+            },
+        )
     }
 
     #[test]
@@ -253,11 +265,11 @@ mod test {
         App::build()
             .add_plugin(Test::Frames(2))
             .add_plugin(ButtonPlugin)
-            .add_startup_system(init_cameras_ui)
-            .add_startup_system(
-                (move |c, s, m| create_n_buttons(button_number as i32, c, s, m)).system(),
-            )
-            .add_system(assert_6_buttons)
+            .add_startup_system(init_cameras_ui.system())
+            .add_startup_system(IntoSystem::<_, _>::system(create_n_buttons(
+                button_number as i32,
+            )))
+            .add_system(Box::new(assert_6_buttons).system())
             .run()
     }
 }

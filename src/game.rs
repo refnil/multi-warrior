@@ -34,8 +34,8 @@ impl Plugin for Game {
             .add_plugin(InputPlugin::default())
             .add_plugin(ButtonPlugin::default())
             .add_resource(Grid::new(10, 10))
-            .add_startup_system(init_cameras)
-            .add_startup_system(init_stuff)
+            .add_startup_system(init_cameras.system())
+            .add_startup_system(init_stuff.system())
 
             //.add_system(change_grid_randomly.system())
             .add_system(on_button_click.system())

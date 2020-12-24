@@ -284,14 +284,15 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_resource(Grid::new(x, y))
-            .add_system_to_stage(stage::EVENT, send_g_key)
-            .add_system(init_cameras_2d)
-            .add_system(change_grid_randomly)
-            .add_system_to_stage(stage::POST_UPDATE, move |v, d| {
-                assert_node_are_visible((x * y) as usize, v, d)
-            })
+            .add_system_to_stage(stage::EVENT, send_g_key.system())
+            .add_system(init_cameras_2d.system())
+            .add_system(change_grid_randomly.system())
+            .add_system_to_stage(
+                stage::POST_UPDATE,
+                assert_node_are_visible((x * y) as usize).system(),
+            )
             .add_resource(TestCheck::new(0).test(bigger_than_0))
-            .add_system_to_stage(stage::POST_UPDATE, assert_node_are_changing)
+            .add_system_to_stage(stage::POST_UPDATE, assert_node_are_changing.system())
             .run();
     }
 
@@ -304,18 +305,21 @@ mod tests {
 
     fn assert_node_are_visible(
         count: usize,
-        visible_entities: Query<&VisibleEntities>,
-        debug_nodes: Query<&GridRenderDebugNode>,
-    ) {
-        let visible_count = visible_entities
-            .iter()
-            .next()
-            .map(|vis| vis.value.len())
-            .unwrap();
-        let debug_count = debug_nodes.iter().count();
+    ) -> Box<impl Fn(Query<&VisibleEntities>, Query<&GridRenderDebugNode>)> {
+        Box::new(
+            move |visible_entities: Query<&VisibleEntities>,
+                  debug_nodes: Query<&GridRenderDebugNode>| {
+                let visible_count = visible_entities
+                    .iter()
+                    .next()
+                    .map(|vis| vis.value.len())
+                    .unwrap();
+                let debug_count = debug_nodes.iter().count();
 
-        assert_eq!(visible_count, debug_count);
-        assert_eq!(visible_count, count);
+                assert_eq!(visible_count, debug_count);
+                assert_eq!(visible_count, count);
+            },
+        )
     }
 
     fn assert_node_are_changing(
@@ -344,8 +348,8 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_resource(Grid::new(2, 3))
-            .add_system_to_stage(stage::PRE_UPDATE, move_camera)
-            .add_system_to_stage(stage::POST_UPDATE, assert_debug_changed)
+            .add_system_to_stage(stage::PRE_UPDATE, move_camera.system())
+            .add_system_to_stage(stage::POST_UPDATE, assert_debug_changed.system())
             .run()
     }
 

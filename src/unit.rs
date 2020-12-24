@@ -18,9 +18,9 @@ impl Plugin for UnitPlugin {
             .add_system(add_time_on_unit_info.system())
             .add_system(turning_ai_update.system())
             .add_system(move_on_ai_force_update.system())
-            .add_system(update_attacking_ai)
-            .add_system(damage_event_reader)
-            .add_system(remove_dead_unit);
+            .add_system(update_attacking_ai.system())
+            .add_system(damage_event_reader.system())
+            .add_system(remove_dead_unit.system());
     }
 }
 
@@ -608,10 +608,10 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d)
+            .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(2, 1))
-            .add_startup_system(init)
-            .add_system(assert_stay_on_0_0)
+            .add_startup_system(init.system())
+            .add_system(assert_stay_on_0_0.system())
             .run();
     }
 
@@ -640,10 +640,10 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d)
+            .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(2, 1))
-            .add_startup_system(init)
-            .add_system(assert_stay_on_0_0)
+            .add_startup_system(init.system())
+            .add_system(assert_stay_on_0_0.system())
             .run();
     }
 
@@ -696,11 +696,11 @@ mod tests {
             .add_plugin(Test::Time(15.0))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d)
+            .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(4, 4))
             .add_resource(TestCheck::new(false).is_true())
-            .add_startup_system(init)
-            .add_system(check_unit_count)
+            .add_startup_system(init.system())
+            .add_system(check_unit_count.system())
             .run();
     }
 
@@ -751,12 +751,12 @@ mod tests {
             .add_plugin(Test::Frames(3))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d)
+            .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(4, 4))
             .add_resource(TestCheck::new(false).is_true())
-            .add_startup_system(init)
-            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit)
-            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit)
+            .add_startup_system(init.system())
+            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit.system())
+            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit.system())
             .run();
     }
 }

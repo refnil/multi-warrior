@@ -8,7 +8,7 @@ pub struct SpawnPlugin;
 
 impl Plugin for SpawnPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(spawn_info_system);
+        app.add_system(spawn_info_system.system());
     }
 }
 
@@ -87,9 +87,8 @@ mod tests {
     use crate::camera::*;
     use crate::utils::tests::*;
 
-    #[test]
-    #[serial]
-    fn spawn_something() {
+    mod spawn_something {
+        use super::*;
         fn setup_scene(commands: &mut Commands) {
             commands.spawn((
                 SpawnInfo {
@@ -107,19 +106,22 @@ mod tests {
         fn check_for_spawn(mut count: ResMut<TestCheck<usize>>, query: Query<&UnitStats>) {
             **count = query.iter().len();
         }
-
-        App::build()
-            .add_plugin(Test::Time(1.5))
-            .add_plugin(GridPlugin)
-            .add_plugin(UnitPlugin)
-            .add_plugin(AnimPlugin)
-            .add_plugin(SpawnPlugin)
-            .add_resource(Grid::new(3, 3))
-            .add_startup_system(init_cameras_2d)
-            .add_startup_system(setup_scene)
-            .add_resource(TestCheck::new(0 as usize).test(|i| i > &1))
-            .add_system(check_for_spawn)
-            .run();
+        #[test]
+        #[serial]
+        fn spawn_something() {
+            App::build()
+                .add_plugin(Test::Time(1.5))
+                .add_plugin(GridPlugin)
+                .add_plugin(UnitPlugin)
+                .add_plugin(AnimPlugin)
+                .add_plugin(SpawnPlugin)
+                .add_resource(Grid::new(3, 3))
+                .add_startup_system(init_cameras_2d.system())
+                .add_startup_system(setup_scene.system())
+                .add_resource(TestCheck::new(0 as usize).test(|i| i > &1))
+                .add_system(check_for_spawn.system())
+                .run();
+        }
     }
 
     #[test]
@@ -135,6 +137,8 @@ mod tests {
         battle_of_two_spawners(10, 3.1416, 10);
     }
 
+    mod battle_of_two_spawners_mod {
+    }
     fn battle_of_two_spawners(size: i32, delay: f32, units: u32) {
         let setup_scene = move |commands: &mut Commands| {
             commands
@@ -172,8 +176,8 @@ mod tests {
             .add_plugin(AnimPlugin)
             .add_plugin(SpawnPlugin)
             .add_resource(Grid::new(size, size))
-            .add_startup_system(init_cameras_2d)
-            .add_startup_system(setup_scene)
+            .add_startup_system(init_cameras_2d.system())
+            .add_startup_system(Box::new(setup_scene).system())
             .run();
     }
 }

@@ -19,6 +19,7 @@ pub fn count_query<Q: WorldQuery>(query: Query<Q>) {
     count_query_filter::<Q, ()>(query);
 }
 
+
 #[derive(Debug, Copy, Clone, EnumIter)]
 pub enum Direction {
     Up,
@@ -108,8 +109,8 @@ pub mod tests {
         pub fn debug(self) -> Self { Self::NoStop }
         fn system(&self) -> Option<impl System<In = (), Out = ()>> {
             match self.clone() {
-                Self::Frames(count) => Some((move |c, e| Self::frames(count, c, e)).system()),
-                Self::Time(time) => Some((move |c, t, e| Self::times(time, c, t, e)).system()),
+                Self::Frames(count) => Some(IntoSystem::system(Box::new(move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e)))),
+                Self::Time(time) => Some(Box::new(move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e)).system()),
                 Self::NoStop => None,
             }
         }
@@ -140,7 +141,6 @@ pub mod tests {
             app.set_runner(winit_runner_any_thread);
             app.add_resource(WinitConfig {
                 return_from_run: true,
-                ignore_unknown_window_id: true,
             });
             if let Some(system) = self.system() {
                 app.add_system_to_stage(stage::POST_UPDATE, system);
