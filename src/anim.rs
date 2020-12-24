@@ -22,8 +22,8 @@ fn animate_sprite_system(
     timer.timer.tick(time.delta_seconds());
     if timer.timer.just_finished() {
         for (mut sprite, mut animation) in query.iter_mut() {
-            animation.current_frame = (animation.current_frame + 1) % animation.frames.len() as u32;
-            sprite.index = animation.frames[animation.current_frame as usize];
+            animation.change_frame();
+            sprite.index = animation.current_frame();
         }
     }
 }
@@ -32,9 +32,50 @@ struct AnimTimer {
     timer: Timer,
 }
 
+#[derive(Eq, PartialEq)]
+pub enum AnimationMode {
+    Loop,
+    Zip(bool),
+    Stop,
+}
+
 pub struct Animation {
     current_frame: u32,
+    mode: AnimationMode,
     frames: Vec<u32>,
+}
+
+impl Animation {
+    fn change_frame(&mut self) {
+        self.current_frame = match self.mode {
+            AnimationMode::Loop => (self.current_frame + 1) % self.frame_count(),
+            AnimationMode::Stop => (self.current_frame + 1).min(self.frame_count() - 1),
+            AnimationMode::Zip(forward) => {
+                let len = self.frame_count();
+                let (res, change_value) = if forward {
+                    ((self.current_frame + 1) % len, len - 1)
+                } else {
+                    ((self.current_frame - 1) % len, 0)
+                };
+                if res == change_value {
+                    self.mode = AnimationMode::Zip(!forward);
+                }
+                res
+            }
+        };
+    }
+
+    pub fn current_frame(&self) -> u32 {
+        self.frames[self.current_frame as usize]
+    }
+
+    pub fn is_stopped(&self) -> bool {
+        self.mode == AnimationMode::Stop && self.current_frame == self.frame_count() - 1
+    }
+
+    pub fn frame_count(&self) -> u32 {
+        self.frames.len() as u32
+    }
 }
 
 impl UnitState {
@@ -59,6 +100,7 @@ impl UnitState {
         };
         Animation {
             current_frame: 0,
+            mode: AnimationMode::Loop,
             frames: frames,
         }
     }

@@ -12,6 +12,7 @@ mod input;
 mod spawn;
 mod unit;
 mod utils;
+mod fx;
 
 use anim::*;
 use button::*;
