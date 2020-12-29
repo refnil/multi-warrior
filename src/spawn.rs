@@ -86,6 +86,7 @@ mod tests {
     use crate::anim::*;
     use crate::camera::*;
     use crate::utils::tests::*;
+    use crate::fx::*;
 
     mod spawn_something {
         use super::*;
@@ -114,6 +115,7 @@ mod tests {
                 .add_plugin(GridPlugin)
                 .add_plugin(UnitPlugin)
                 .add_plugin(AnimPlugin)
+            .add_plugin(FxPlugin)
                 .add_plugin(SpawnPlugin)
                 .add_resource(Grid::new(3, 3))
                 .add_startup_system(init_cameras_2d.system())
@@ -127,19 +129,17 @@ mod tests {
     #[test]
     #[serial]
     fn small_battle() {
-        battle_of_two_spawners(3, 1.2, 2);
+        battle_of_two_spawners(Test::Time(2.0), 3, 1.2, 2);
     }
 
     #[test]
     #[serial]
     #[ignore]
     fn big_battle() {
-        battle_of_two_spawners(10, 3.1416, 10);
+        battle_of_two_spawners(Test::NoStop, 10, 3.1416, 10);
     }
 
-    mod battle_of_two_spawners_mod {
-    }
-    fn battle_of_two_spawners(size: i32, delay: f32, units: u32) {
+    fn battle_of_two_spawners(test: Test, size: i32, delay: f32, units: u32) {
         let setup_scene = move |commands: &mut Commands| {
             commands
                 .spawn((
@@ -170,14 +170,21 @@ mod tests {
         };
 
         App::build()
-            .add_plugin(Test::Time(1.5).debug())
+            .add_plugin(test)
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_plugin(AnimPlugin)
             .add_plugin(SpawnPlugin)
+            .add_plugin(FxPlugin)
             .add_resource(Grid::new(size, size))
+            .add_resource(TestCheck::<usize>::new(0).test(move |v| *v >= units as usize * 2))
             .add_startup_system(init_cameras_2d.system())
             .add_startup_system(Box::new(setup_scene).system())
+            .add_system(total_unit.system())
             .run();
+    }
+
+    fn total_unit(mut val: ResMut<TestCheck<usize>>, query: Query<&UnitInfo>) {
+        **val = query.iter().len().max(**val);
     }
 }

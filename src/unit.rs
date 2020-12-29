@@ -6,6 +6,7 @@ use rand::*;
 use std::ops::{Deref, DerefMut};
 
 use crate::anim::*;
+use crate::fx::*;
 use crate::grid::*;
 use crate::utils::{Direction, *};
 
@@ -79,12 +80,18 @@ fn damage_event_reader(
 fn remove_dead_unit(
     commands: &mut Commands,
     mut grid: ResMut<Grid>,
-    query: Query<(Entity, &UnitStats, &UnitForce, &UnitInfo), Changed<UnitStats>>,
+    query: Query<(Entity, &UnitStats, &UnitForce, &UnitInfo, &Transform), Changed<UnitStats>>,
+    mut fx: ResMut<Events<FxSpawnEvent>>,
 ) {
-    for (entity, stats, force, info) in query.iter() {
+    for (entity, stats, force, info, transform) in query.iter() {
         if stats.life <= 0 {
             commands.despawn(entity);
             grid.change_by_count(info.target_x, info.target_y, -force.as_int());
+            fx.send(FxSpawnEvent {
+                kind: FxKind::Death,
+                transform: transform.clone(),
+                duration: None,
+            });
         }
     }
 }
@@ -375,6 +382,7 @@ fn enemy_in_range() {
 pub fn update_attacking_ai(
     mut grid: ResMut<Grid>,
     mut damage_events: ResMut<Events<DamageEvent>>,
+    mut fx_events: ResMut<Events<FxSpawnEvent>>,
     mut query: Query<
         (
             &mut AttackingAIState,
@@ -384,11 +392,13 @@ pub fn update_attacking_ai(
             &UnitForce,
             &mut UnitState,
             &mut GridTransform,
+            &Transform,
         ),
         With<AttackingAI>,
     >,
 ) {
-    for (mut state, mut info, stats, time, force, mut anim_state, mut transform) in query.iter_mut()
+    for (mut state, mut info, stats, time, force, mut anim_state, mut transform, trans) in
+        query.iter_mut()
     {
         update_pos(&time, &info, &mut transform);
 
@@ -441,8 +451,16 @@ pub fn update_attacking_ai(
         let (delay, new_anim_state) = match new_state {
             AttackingAIState::PrepareAttack => {
                 let (enemy_x, enemy_y) = enemy_close.unwrap();
+                let duration = 1.0 / stats.attack_speed;
+                let mut t = trans.clone();
+                t.scale = t.scale / 2.0;
+                fx_events.send(FxSpawnEvent {
+                    duration: Some(duration),
+                    kind: FxKind::Fire,
+                    transform: t,
+                });
                 (
-                    1.0 / stats.attack_speed,
+                    duration,
                     UnitState::Still(Direction::from_points(
                         info.last_x,
                         info.last_y,
@@ -607,6 +625,7 @@ mod tests {
         App::build()
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
+            .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(2, 1))
@@ -639,6 +658,7 @@ mod tests {
         App::build()
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
+            .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(2, 1))
@@ -695,6 +715,7 @@ mod tests {
         App::build()
             .add_plugin(Test::Time(15.0))
             .add_plugin(GridPlugin)
+            .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(4, 4))
@@ -751,6 +772,7 @@ mod tests {
             .add_plugin(Test::Frames(3))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
+            .add_plugin(FxPlugin)
             .add_system(init_cameras_2d.system())
             .add_resource(Grid::new(4, 4))
             .add_resource(TestCheck::new(false).is_true())

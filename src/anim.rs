@@ -7,34 +7,51 @@ pub struct AnimPlugin;
 
 impl Plugin for AnimPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(AnimTimer {
-            timer: Timer::from_seconds(0.1, true),
-        })
-        .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
-        .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
+        app.add_resource(AnimTimer::new(0.1))
+            .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
+            .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
     }
 }
 fn animate_sprite_system(
     time: Res<Time>,
     mut timer: ResMut<AnimTimer>,
-    mut query: Query<(&mut TextureAtlasSprite, &mut Animation)>,
+    mut query_sync: Query<(&mut TextureAtlasSprite, &mut Animation), Without<AnimTimer>>,
+    mut query_with_timer: Query<(&mut TextureAtlasSprite, &mut Animation, &mut AnimTimer)>,
 ) {
-    timer.timer.tick(time.delta_seconds());
+    let delta = time.delta_seconds();
+    timer.timer.tick(delta);
     if timer.timer.just_finished() {
-        for (mut sprite, mut animation) in query.iter_mut() {
+        for (mut sprite, mut animation) in query_sync.iter_mut() {
             animation.change_frame();
             sprite.index = animation.current_frame();
         }
     }
+
+    for (mut sprite, mut anim, mut timer) in query_with_timer.iter_mut() {
+        timer.timer.tick(delta);
+        if timer.timer.just_finished() {
+            anim.change_frame();
+            sprite.index = anim.current_frame();
+        }
+    }
 }
 
-struct AnimTimer {
+pub struct AnimTimer {
     timer: Timer,
+}
+
+impl AnimTimer {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            timer: Timer::from_seconds(duration, true),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq)]
 pub enum AnimationMode {
     Loop,
+    #[allow(dead_code)]
     Zip(bool),
     Stop,
 }
@@ -43,6 +60,17 @@ pub struct Animation {
     current_frame: u32,
     mode: AnimationMode,
     frames: Vec<u32>,
+}
+
+impl Animation {
+    pub fn new(mode: AnimationMode, frames: Vec<u32>) -> Self {
+        assert!(frames.len() > 0);
+        Self {
+            current_frame: 0,
+            mode,
+            frames,
+        }
+    }
 }
 
 impl Animation {

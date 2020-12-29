@@ -1,5 +1,4 @@
 use bevy::ecs::*;
-use bevy::log::*;
 
 pub use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -106,7 +105,9 @@ pub mod tests {
     }
 
     impl Test {
+        #[allow(dead_code)]
         pub fn debug(self) -> Self { Self::NoStop }
+
         fn system(&self) -> Option<impl System<In = (), Out = ()>> {
             match self.clone() {
                 Self::Frames(count) => Some(IntoSystem::system(Box::new(move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e)))),
@@ -152,7 +153,7 @@ pub mod tests {
     // Test event
     pub struct TestCheck<T> {
         val: T,
-        test: Vec<fn(&T) -> bool>,
+        test: Vec<Box<dyn FnOnce(&T) -> bool + Send + 'static + Sync>>,
     }
 
     impl<T> TestCheck<T> {
@@ -163,8 +164,10 @@ pub mod tests {
             }
         }
 
-        pub fn test(mut self, f: fn(&T) -> bool) -> Self {
-            self.test.push(f);
+        pub fn test<Func>(mut self, f: Func) -> Self
+        where Func: FnOnce(&T) -> bool + Send + 'static + Sync
+        {
+            self.test.push(Box::new(f));
             self
         }
     }
@@ -195,7 +198,8 @@ pub mod tests {
     impl<T> Drop for TestCheck<T> {
         fn drop(&mut self) {
             if !thread::panicking() {
-                for f in self.test.iter() {
+                let tests = std::mem::replace(&mut self.test, Vec::new());
+                for f in tests.into_iter() {
                     assert!(f(&self.val));
                 }
             }

@@ -188,6 +188,7 @@ pub enum GridStatus {
 }
 
 impl GridStatus {
+    #[allow(dead_code)]
     pub fn from_force(ally: bool) -> Self {
         if ally {
             Self::Friend
@@ -261,8 +262,6 @@ impl Grid {
         }
         return None;
     }
-
-    pub fn find_nearest_ally(&self) {}
 }
 
 #[cfg(test)]

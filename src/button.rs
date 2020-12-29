@@ -220,7 +220,6 @@ mod test {
     use super::*;
     use crate::camera::*;
     use crate::utils::tests::*;
-    use bevy::ecs::SystemParam;
 
     pub fn create_n_buttons<'a>(
         button_count: i32,
