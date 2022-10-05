@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::camera::*;
 
 use crate::camera::*;
 
@@ -7,16 +6,18 @@ use crate::camera::*;
 pub struct GridPlugin;
 
 impl Plugin for GridPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<GridRenderDebug>()
-            .add_startup_system(init_render_grid.system())
-            .add_system(update_grid_debug_visible.system())
-            .add_system(update_grid_render_debug.system())
-            .add_system(update_grid_transform.system())
-            .add_system(update_grid_color.system());
+            .add_startup_system(init_render_grid)
+            .add_system(update_grid_debug_visible)
+            .add_system(update_grid_render_debug)
+            .add_system(update_grid_transform)
+            .add_system(update_grid_color);
     }
 }
 
+
+#[derive(Component)]
 pub struct GridRenderDebug {
     nothing_color: Handle<ColorMaterial>,
     friend_color: Handle<ColorMaterial>,
@@ -44,8 +45,10 @@ impl GridRenderDebug {
     }
 }
 
+#[derive(Component)]
 struct GridRenderDebugNode;
 
+#[derive(Component)]
 pub struct GridTransform {
     pub x: f32,
     pub y: f32,
@@ -62,9 +65,9 @@ impl GridTransform {
     }
 }
 
-impl FromResources for GridRenderDebug {
-    fn from_resources(res: &Resources) -> Self {
-        let mut materials = res.get_mut::<Assets<ColorMaterial>>().unwrap();
+impl FromWorld for GridRenderDebug {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             nothing_color: materials.add(Color::rgb(1.0, 1.0, 1.0).into()),
             friend_color: materials.add(Color::rgb(0.0, 1.0, 1.0).into()),
@@ -82,15 +85,13 @@ impl FromResources for GridRenderDebug {
     }
 }
 
-fn init_render_grid(commands: &mut Commands, grid: Res<Grid>) {
+fn init_render_grid(mut commands: Commands, grid: Res<Grid>) {
     for x in 0..grid.x {
         for y in 0..grid.y {
-            commands.spawn(SpriteBundle {
-                sprite: Sprite::new(Vec2::new(1.0, 1.0)),
+            commands.spawn_bundle(SpriteBundle {
+                // sprite: Sprite::new(Vec2::new(1.0, 1.0)),
                 ..Default::default()
-            });
-            commands.with(GridRenderDebugNode);
-            commands.with(GridTransform::on(x, y));
+            }) .insert(GridRenderDebugNode).insert (GridTransform::on(x, y));
         }
     }
 }
@@ -134,7 +135,7 @@ fn update_grid_color(
     grid: Res<Grid>,
     grid_debug: Res<GridRenderDebug>,
     mut query_materials: Query<
-        (&GridTransform, &mut Handle<ColorMaterial>, &mut Visible),
+        (&GridTransform, &mut Handle<ColorMaterial>, &mut Visibility),
         With<GridRenderDebugNode>,
     >,
 ) {
@@ -162,7 +163,6 @@ fn update_grid_color(
 pub fn change_grid_randomly(mut grid: ResMut<Grid>) {
     use rand::random;
 
-    coz::scope!("change_grid_randomly");
     let max_x = grid.x as u16;
     let max_y = grid.y as u16;
 
@@ -244,7 +244,6 @@ impl Grid {
     }
 
     pub fn get_status(self: &Grid, x: i32, y: i32) -> Option<GridStatus> {
-        coz::scope!("grid::get_status");
         self.get_count(x, y).map(|count| {
             if count == 0 {
                 GridStatus::Neutral
@@ -283,15 +282,15 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_resource(Grid::new(x, y))
-            .add_system_to_stage(stage::EVENT, send_g_key.system())
-            .add_system(init_cameras_2d.system())
-            .add_system(change_grid_randomly.system())
+            .add_system_to_stage(stage::EVENT, send_g_key)
+            .add_system(init_cameras_2d)
+            .add_system(change_grid_randomly)
             .add_system_to_stage(
                 stage::POST_UPDATE,
-                assert_node_are_visible((x * y) as usize).system(),
+                assert_node_are_visible((x * y) as usize),
             )
             .add_resource(TestCheck::new(0).test(bigger_than_0))
-            .add_system_to_stage(stage::POST_UPDATE, assert_node_are_changing.system())
+            .add_system_to_stage(stage::POST_UPDATE, assert_node_are_changing)
             .run();
     }
 
@@ -347,8 +346,8 @@ mod tests {
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_resource(Grid::new(2, 3))
-            .add_system_to_stage(stage::PRE_UPDATE, move_camera.system())
-            .add_system_to_stage(stage::POST_UPDATE, assert_debug_changed.system())
+            .add_system_to_stage(CoreStage::PreUpdate, move_camera)
+            .add_system_to_stage(CoreStage::PostUpdate, assert_debug_changed)
             .run()
     }
 

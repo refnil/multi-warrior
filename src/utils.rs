@@ -1,4 +1,5 @@
-use bevy::ecs::*;
+use bevy::ecs::system::Query;
+use bevy::ecs::query::WorldQuery;
 
 pub use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -8,7 +9,7 @@ use strum_macros::EnumIter;
 pub use std;
 
 #[allow(dead_code)]
-pub fn count_query_filter<Q: WorldQuery, F: QueryFilter>(mut query: Query<Q, F>) {
+pub fn count_query_filter<Q: WorldQuery, F: WorldQuery>(mut query: Query<Q, F>) {
     let name = std::any::type_name::<Q>();
     println!("{}: {}", name, query.iter_mut().count());
 }
@@ -111,7 +112,7 @@ pub mod tests {
         fn system(&self) -> Option<impl System<In = (), Out = ()>> {
             match self.clone() {
                 Self::Frames(count) => Some(IntoSystem::system(Box::new(move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e)))),
-                Self::Time(time) => Some(Box::new(move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e)).system()),
+                Self::Time(time) => Some(Box::new(move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e))),
                 Self::NoStop => None,
             }
         }
@@ -143,7 +144,7 @@ pub mod tests {
             app.add_resource(WinitConfig {
                 return_from_run: true,
             });
-            if let Some(system) = self.system() {
+            if let Some(system) = self {
                 app.add_system_to_stage(stage::POST_UPDATE, system);
             }
         }

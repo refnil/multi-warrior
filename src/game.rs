@@ -22,62 +22,65 @@ use grid::*;
 use input::InputPlugin;
 use unit::*;
 use utils::Direction;
+use fx::FxPlugin;
 
 pub struct Game;
 
 impl Plugin for Game {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_plugins(DefaultPlugins)
             .add_plugin(FPSPlugin { color: Color::BLACK })
             .add_plugin(UnitPlugin::default())
             .add_plugin(GridPlugin::default())
             .add_plugin(InputPlugin::default())
             .add_plugin(ButtonPlugin::default())
-            .add_resource(Grid::new(10, 10))
-            .add_startup_system(init_cameras.system())
-            .add_startup_system(init_stuff.system())
+            .add_plugin(FxPlugin)
+            .insert_resource(Grid::new(10, 10))
+            .add_startup_system(init_cameras)
+            .add_startup_system(init_stuff)
 
-            //.add_system(change_grid_randomly.system())
-            .add_system(on_button_click.system())
+            //.add_system(change_grid_randomly)
+            .add_system(on_button_click)
 
-            //.add_system(crate::utils::count_query::<(&TextureAtlasSprite,)>.system())
+            //.add_system(crate::utils::count_query::<(&TextureAtlasSprite,)>)
         ;
     }
 }
 
 fn init_stuff(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut grid: ResMut<Grid>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
     for i in 1..8 {
         spawn_unit(
-            commands,
+            &mut commands,
             &asset_server,
             &mut grid,
             &mut texture_atlases,
             i,
             i,
             false,
-        )
-        .with(MoveOnForceAI {
+        |c| { c.insert(MoveOnForceAI {
             target_x: (i ^ 2) % 10,
             target_y: (i ^ 3) % 10,
             //stick_to_target: true,
             ..Default::default()
         });
+        }
+        )
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
 struct StateSetter {
     state: UnitState,
     entity: Entity,
 }
 
 fn on_button_click(
-    query: Query<(&StateSetter, &Interaction), (Mutated<Interaction>, With<Button>)>,
+    query: Query<(&StateSetter, &Interaction), (Changed<Interaction>, With<Button>)>,
     mut update_query: Query<&mut UnitState>,
 ) {
     for (state, interaction) in query.iter() {
@@ -124,31 +127,27 @@ mod tests {
                         ..Default::default()
                     },
                 }
-                .build(commands)
-                .with(TurningAI);
+                .build(commands, |c| {c.insert(TurningAI);})
             }
         }
-        let unit = commands.current_entity().unwrap();
-
-        spawner.spawn_button(commands, "Left".to_string(), None);
-        commands.with(StateSetter {
+        let unit = {
+            commands.spawn().id()
+        };
+        spawner.spawn_button(commands, "Left".to_string(), None, |c|{c.insert(StateSetter {
             state: UnitState::Still(Direction::Left),
             entity: unit,
-        });
-        spawner.spawn_button(commands, "Right".to_string(), None);
-        commands.with(StateSetter {
+        });});
+        spawner.spawn_button(commands, "Right".to_string(), None, |c|{c.insert(StateSetter {
             state: UnitState::Still(Direction::Right),
             entity: unit,
-        });
-        spawner.spawn_button(commands, "Down".to_string(), None);
-        commands.with(StateSetter {
+        });});
+        spawner.spawn_button(commands, "Down".to_string(), None, |c|{c.insert(StateSetter {
             state: UnitState::Still(Direction::Down),
             entity: unit,
-        });
-        spawner.spawn_button(commands, "Up".to_string(), None);
-        commands.with(StateSetter {
+        });});
+        spawner.spawn_button(commands, "Up".to_string(), None, |c|{ c.insert(StateSetter {
             state: UnitState::Still(Direction::Up),
             entity: unit,
-        });
+        });});
     }
 }

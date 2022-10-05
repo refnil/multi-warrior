@@ -1,6 +1,5 @@
-use bevy::ecs::*;
 use bevy::prelude::*;
-use bevy::tasks::prelude::*;
+use bevy::ecs::system::EntityCommands;
 
 use rand::*;
 use std::ops::{Deref, DerefMut};
@@ -14,14 +13,14 @@ use crate::utils::{Direction, *};
 pub struct UnitPlugin;
 
 impl Plugin for UnitPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<Events<DamageEvent>>()
-            .add_system(add_time_on_unit_info.system())
-            .add_system(turning_ai_update.system())
-            .add_system(move_on_ai_force_update.system())
-            .add_system(update_attacking_ai.system())
-            .add_system(damage_event_reader.system())
-            .add_system(remove_dead_unit.system());
+            .add_system(add_time_on_unit_info)
+            .add_system(turning_ai_update)
+            .add_system(move_on_ai_force_update)
+            .add_system(update_attacking_ai)
+            .add_system(damage_event_reader)
+            .add_system(remove_dead_unit);
     }
 }
 
@@ -41,19 +40,21 @@ pub struct UnitBundle {
 }
 
 impl UnitBundle {
-    pub fn build(self, commands: &mut Commands) -> &mut Commands {
+    pub fn build(self, commands: &mut Commands, with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>)){
+        with_unit(
         commands
-            .spawn(self.spritesheet)
-            .with(self.unit_info)
-            .with(self.unit_state.get_animation())
-            .with(self.unit_state)
-            .with(UnitTime::default())
-            .with(GridTransform {
+            .spawn_bundle(self.spritesheet)
+            .insert(self.unit_info)
+            .insert(self.unit_state.get_animation())
+            .insert(self.unit_state)
+            .insert(UnitTime::default())
+            .insert(GridTransform {
                 x: -1000.0,
                 y: -1000.0,
                 update_scale: false,
             })
-            .with(self.unit_stats)
+            .insert(self.unit_stats)
+        );
     }
 }
 
@@ -78,14 +79,14 @@ fn damage_event_reader(
 }
 
 fn remove_dead_unit(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut grid: ResMut<Grid>,
     query: Query<(Entity, &UnitStats, &UnitForce, &UnitInfo, &Transform), Changed<UnitStats>>,
     mut fx: ResMut<Events<FxSpawnEvent>>,
 ) {
     for (entity, stats, force, info, transform) in query.iter() {
         if stats.life <= 0 {
-            commands.despawn(entity);
+            commands.entity(entity).despawn();
             grid.change_by_count(info.target_x, info.target_y, -force.as_int());
             fx.send(FxSpawnEvent {
                 kind: FxKind::Death,
@@ -98,11 +99,10 @@ fn remove_dead_unit(
 
 fn add_time_on_unit_info(
     time: Res<Time>,
-    pool: Res<ComputeTaskPool>,
     mut query: Query<&mut UnitTime>,
 ) {
     let delta = time.delta_seconds();
-    query.par_iter_mut(64).for_each(&pool, |mut unit| {
+    query.par_for_each_mut(64, |mut unit| {
         unit.time += delta;
     });
 }
@@ -237,7 +237,7 @@ fn update_pos(time: &UnitTime, info: &UnitInfo, mut transform: &mut GridTransfor
     transform.y = info.last_y as f32 + ratio * (info.target_y - info.last_y) as f32;
 }
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct UnitInfo {
     pub last_x: i32,
     pub last_y: i32,
@@ -251,11 +251,12 @@ pub struct UnitInfo {
     pub end_time: f32,
 }
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct UnitTime {
     pub time: f32,
 }
 
+#[derive(Component)]
 pub struct UnitStats {
     pub life: i32,
     pub move_speed: f32,
@@ -274,6 +275,7 @@ impl Default for UnitStats {
     }
 }
 
+#[derive(Component)]
 pub struct UnitForce {
     pub ally: bool,
 }
@@ -296,18 +298,20 @@ impl UnitForce {
     }
 }
 
+#[derive(Component)]
 pub struct TurningAI;
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct MoveOnForceAI {
     pub target_x: i32,
     pub target_y: i32,
     pub stick_to_target: bool,
 }
 
+#[derive(Component)]
 pub struct AttackingAI;
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 pub enum AttackingAIState {
     PrepareAttack,
     AfterAttack,
@@ -508,28 +512,7 @@ pub fn update_attacking_ai(
     }
 }
 
-#[derive(SystemParam)]
-pub struct SpawnUnitRes<'a> {
-    pub commands: &'a mut Commands,
-    pub asset_server: Res<'a, AssetServer>,
-    pub grid: ResMut<'a, Grid>,
-    pub texture_atlases: ResMut<'a, Assets<TextureAtlas>>,
-}
-
-impl<'a> SpawnUnitRes<'a> {
-    pub fn spawn_unit(&mut self, x: i32, y: i32, ally: bool) -> &mut Self {
-        spawn_unit(
-            self.commands,
-            &self.asset_server,
-            &mut self.grid,
-            &mut self.texture_atlases,
-            x,
-            y,
-            ally,
-        );
-        self
-    }
-}
+pub type SpawnUnitRes<'a> = (Commands<'a, 'a>, Res<'a, AssetServer>, ResMut<'a, Grid>, ResMut<'a, Assets<TextureAtlas>>);
 
 pub fn spawn_unit<'a, G, TA>(
     commands: &'a mut Commands,
@@ -539,7 +522,8 @@ pub fn spawn_unit<'a, G, TA>(
     x: i32,
     y: i32,
     ally: bool,
-) -> &'a mut Commands
+    with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>)
+) 
 where
     G: Deref<Target = Grid> + DerefMut,
     TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
@@ -552,6 +536,10 @@ where
     let texture_handle = asset_server.load(path);
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(32.0, 32.0), 3, 4);
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    grid.get_count(x, y)
+        .expect("Expected valid position for the new unit");
+    grid.change_by_count(x, y, if ally { 1 } else { -1 });
+
     UnitBundle {
         spritesheet: SpriteSheetBundle {
             texture_atlas: texture_atlas_handle.clone(),
@@ -574,14 +562,10 @@ where
         unit_state: UnitState::Moving(crate::unit::Direction::Right),
         unit_stats: Default::default(),
     }
-    .build(commands)
-    .with(UnitForce { ally: ally });
-
-    grid.get_count(x, y)
-        .expect("Expected valid position for the new unit");
-    grid.change_by_count(x, y, if ally { 1 } else { -1 });
-
-    commands
+    .build(commands, |c| {
+        c.insert(UnitForce { ally: ally });
+        with_unit(c);
+    })
 }
 
 #[cfg(test)]
@@ -627,10 +611,10 @@ mod tests {
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d.system())
+            .add_system(init_cameras_2d)
             .add_resource(Grid::new(2, 1))
-            .add_startup_system(init.system())
-            .add_system(assert_stay_on_0_0.system())
+            .add_startup_system(init)
+            .add_system(assert_stay_on_0_0)
             .run();
     }
 
@@ -660,10 +644,10 @@ mod tests {
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d.system())
+            .add_system(init_cameras_2d)
             .add_resource(Grid::new(2, 1))
-            .add_startup_system(init.system())
-            .add_system(assert_stay_on_0_0.system())
+            .add_startup_system(init)
+            .add_system(assert_stay_on_0_0)
             .run();
     }
 
@@ -717,11 +701,11 @@ mod tests {
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
-            .add_system(init_cameras_2d.system())
+            .add_system(init_cameras_2d)
             .add_resource(Grid::new(4, 4))
             .add_resource(TestCheck::new(false).is_true())
-            .add_startup_system(init.system())
-            .add_system(check_unit_count.system())
+            .add_startup_system(init)
+            .add_system(check_unit_count)
             .run();
     }
 
@@ -773,12 +757,12 @@ mod tests {
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_plugin(FxPlugin)
-            .add_system(init_cameras_2d.system())
+            .add_system(init_cameras_2d)
             .add_resource(Grid::new(4, 4))
             .add_resource(TestCheck::new(false).is_true())
-            .add_startup_system(init.system())
-            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit.system())
-            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit.system())
+            .add_startup_system(init)
+            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit)
+            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit)
             .run();
     }
 }

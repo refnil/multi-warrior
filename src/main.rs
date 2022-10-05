@@ -5,5 +5,5 @@ use bevy::prelude::*;
 use multi_warrior_lib::Game;
 
 fn main() {
-    App::build().add_plugin(Game).run();
+    App::new().add_plugin(Game).run();
 }

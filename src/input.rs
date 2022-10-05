@@ -4,11 +4,11 @@ use bevy::prelude::*;
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<KeyboardCombinationInput>()
-            .add_startup_system(test::add_some_input.system())
-            .add_system_to_stage(stage::PRE_UPDATE, combination_input_update.system())
-            .add_system_to_stage(stage::POST_UPDATE, combination_reset_end_frame.system());
+            .add_startup_system(test::add_some_input)
+            .add_system_to_stage(CoreStage::PreUpdate, combination_input_update)
+            .add_system_to_stage(CoreStage::PostUpdate, combination_reset_end_frame);
     }
 }
 
@@ -37,7 +37,7 @@ fn combination_reset_end_frame(mut query: Query<&mut CombinationInput, Changed<C
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Component)]
 pub struct CombinationInput {
     pub want_combination: bool,
     combination: Option<KeyboardCombination>,
@@ -169,9 +169,9 @@ mod test {
     use rand::random;
 
     #[allow(dead_code)]
-    pub fn add_some_input(commands: &mut Commands) {
-        commands.spawn((super::CombinationInput::default(),));
-        commands.spawn((super::CombinationInput::default(),));
+    pub fn add_some_input(mut commands: Commands) {
+        commands.spawn().insert(super::CombinationInput::default());
+        commands.spawn().insert(super::CombinationInput::default());
     }
 
     #[allow(dead_code)]

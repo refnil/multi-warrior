@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+ use bevy::utils::Duration;
 
 use crate::utils::Direction;
 
@@ -6,10 +7,10 @@ use crate::utils::Direction;
 pub struct AnimPlugin;
 
 impl Plugin for AnimPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(AnimTimer::new(0.1))
-            .add_system_to_stage(stage::POST_UPDATE, update_animation_from_state.system())
-            .add_system_to_stage(stage::POST_UPDATE, animate_sprite_system.system());
+    fn build(&self, app: &mut App) {
+        app.insert_resource(AnimTimer::new(0.1))
+            .add_system_to_stage(CoreStage::PostUpdate, update_animation_from_state)
+            .add_system_to_stage(CoreStage::PostUpdate, animate_sprite_system);
     }
 }
 fn animate_sprite_system(
@@ -18,7 +19,7 @@ fn animate_sprite_system(
     mut query_sync: Query<(&mut TextureAtlasSprite, &mut Animation), Without<AnimTimer>>,
     mut query_with_timer: Query<(&mut TextureAtlasSprite, &mut Animation, &mut AnimTimer)>,
 ) {
-    let delta = time.delta_seconds();
+    let delta = Duration::from_secs_f32(time.delta_seconds());
     timer.timer.tick(delta);
     if timer.timer.just_finished() {
         for (mut sprite, mut animation) in query_sync.iter_mut() {
@@ -36,6 +37,7 @@ fn animate_sprite_system(
     }
 }
 
+#[derive(Component)]
 pub struct AnimTimer {
     timer: Timer,
 }
@@ -56,14 +58,16 @@ pub enum AnimationMode {
     Stop,
 }
 
+#[derive(Component)]
 pub struct Animation {
-    current_frame: u32,
+    current_frame: usize,
     mode: AnimationMode,
-    frames: Vec<u32>,
+    frames: Vec<usize>,
 }
 
+
 impl Animation {
-    pub fn new(mode: AnimationMode, frames: Vec<u32>) -> Self {
+    pub fn new(mode: AnimationMode, frames: Vec<usize>) -> Self {
         assert!(frames.len() > 0);
         Self {
             current_frame: 0,
@@ -93,16 +97,16 @@ impl Animation {
         };
     }
 
-    pub fn current_frame(&self) -> u32 {
-        self.frames[self.current_frame as usize]
+    pub fn current_frame(&self) -> usize {
+        self.frames[self.current_frame]
     }
 
     pub fn is_stopped(&self) -> bool {
         self.mode == AnimationMode::Stop && self.current_frame == self.frame_count() - 1
     }
 
-    pub fn frame_count(&self) -> u32 {
-        self.frames.len() as u32
+    pub fn frame_count(&self) -> usize {
+        self.frames.len()
     }
 }
 
@@ -140,7 +144,7 @@ fn update_animation_from_state(mut query: Query<(&UnitState, &mut Animation), Ch
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Component)]
 pub enum UnitState {
     Still(Direction),
     Moving(Direction),

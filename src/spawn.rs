@@ -1,5 +1,5 @@
-use bevy::ecs::*;
 use bevy::prelude::*;
+use bevy::ecs::system::EntityCommands;
 
 use crate::grid::*;
 use crate::unit::*;
@@ -7,11 +7,12 @@ use crate::unit::*;
 pub struct SpawnPlugin;
 
 impl Plugin for SpawnPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_system(spawn_info_system.system());
+    fn build(&self, app: &mut App) {
+        app.add_system(spawn_info_system);
     }
 }
 
+#[derive(Component)]
 pub struct SpawnInfo {
     pub target_unit_count: Option<u32>,
     pub spawn_delay: Option<f32>,
@@ -32,13 +33,17 @@ impl SpawnInfo {
             self.last_spawn + self.spawn_delay.unwrap_or(0.0) < time.seconds_since_startup() as f32;
         status && count && time
     }
-    pub fn spawn(&self, sur: &mut SpawnUnitRes) {
-        sur.spawn_unit(self.x, self.y, self.ally);
+    pub fn spawn(&self, mut commands: &mut Commands, asset_server: &AssetServer, mut grid: &mut Grid, mut texture_atlas: &mut Assets<TextureAtlas>, with_spawn: impl FnOnce(&mut EntityCommands)) {
+        spawn_unit(&mut commands, &asset_server, &mut grid, &mut texture_atlas, self.x, self.y, self.ally, with_spawn);
     }
 }
+pub type SpawnUnitRes<'a> = (Commands<'a, 'a>, Res<'a, AssetServer>, ResMut<'a, Grid>, ResMut<'a, Assets<TextureAtlas>>);
 
 fn spawn_info_system(
-    mut sur: SpawnUnitRes,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut grid: ResMut<Grid>,
+    mut texture_atlas: ResMut<Assets<TextureAtlas>>,
     time: Res<Time>,
     mut query: Query<(Entity, &mut SpawnInfo)>,
     query_of_ai: Query<(
@@ -62,20 +67,21 @@ fn spawn_info_system(
 
     for (entity, mut si) in query.iter_mut() {
         let count = if si.ally { good } else { bad };
-        if si.want_spawn(&sur.grid, &time, count) {
-            si.spawn(&mut sur);
+        if si.want_spawn(&grid, &time, count) {
             si.last_spawn = time.seconds_since_startup() as f32;
+            si.spawn(&mut commands, &asset_server, &mut grid, &mut texture_atlas, |c|{
 
             if query_of_ai.get_component::<TurningAI>(entity).is_ok() {
-                sur.commands.with(TurningAI);
+                c.insert(TurningAI);
             } else if query_of_ai.get_component::<MoveOnForceAI>(entity).is_ok() {
-                sur.commands.with(MoveOnForceAI::default());
+                c.insert(MoveOnForceAI::default());
             } else if query_of_ai.get_component::<AttackingAI>(entity).is_ok() {
-                sur.commands.with(AttackingAI);
-                sur.commands.with(AttackingAIState::MoveToNearestEnemy);
+                c.insert(AttackingAI);
+                c.insert(AttackingAIState::MoveToNearestEnemy);
             } else {
                 warn!("No ai found while spawning a new unit");
             }
+            });
         }
     }
 }
@@ -118,10 +124,10 @@ mod tests {
             .add_plugin(FxPlugin)
                 .add_plugin(SpawnPlugin)
                 .add_resource(Grid::new(3, 3))
-                .add_startup_system(init_cameras_2d.system())
-                .add_startup_system(setup_scene.system())
+                .add_startup_system(init_cameras_2d)
+                .add_startup_system(setup_scene)
                 .add_resource(TestCheck::new(0 as usize).test(|i| i > &1))
-                .add_system(check_for_spawn.system())
+                .add_system(check_for_spawn)
                 .run();
         }
     }
@@ -178,9 +184,9 @@ mod tests {
             .add_plugin(FxPlugin)
             .add_resource(Grid::new(size, size))
             .add_resource(TestCheck::<usize>::new(0).test(move |v| *v >= units as usize * 2))
-            .add_startup_system(init_cameras_2d.system())
-            .add_startup_system(Box::new(setup_scene).system())
-            .add_system(total_unit.system())
+            .add_startup_system(init_cameras_2d)
+            .add_startup_system(Box::new(setup_scene))
+            .add_system(total_unit)
             .run();
     }
 

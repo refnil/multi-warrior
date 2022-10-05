@@ -12,7 +12,7 @@ let
       "rls-preview"
       "clippy-preview"
       "rustfmt-preview"
-      "rust-analysis"
+      # "rust-analysis"
       "rls-preview"
     ];
   };
@@ -30,18 +30,17 @@ let
   };
 
   wrapCargo = wrap "cargo" rust;
-  wrapCoz = wrap "coz" pkgs.coz;
 in pkgs.mkShell {
   buildInputs = [
     wrapCargo
     rust
     pkgs.alsaLib
     pkgs.pkgconfig
-    pkgs.libudev
+    pkgs.udev
     pkgs.vulkan-headers
     pkgs.vulkan-loader
     pkgs.vulkan-tools
-    pkgs.x11
+    pkgs.xlibsWrapper
     pkgs.xorg.libXcursor
     pkgs.xorg.libXi
     pkgs.xorg.libXrandr
@@ -52,7 +51,6 @@ in pkgs.mkShell {
     pkgs.cargo-cache
     pkgs.cargo-bloat
     pkgs.aseprite
-    wrapCoz
     pkgs.peek
   ];
 }

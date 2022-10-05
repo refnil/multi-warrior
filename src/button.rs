@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ecs::system::EntityCommands;
 
 use crate::input::*;
 
@@ -6,18 +7,18 @@ use crate::input::*;
 pub struct ButtonPlugin;
 
 impl Plugin for ButtonPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<ButtonMaterials>()
             .init_resource::<ButtonSpawner>()
-            .add_system_to_stage(stage::PRE_UPDATE, press_button_from_input.system())
-            .add_system(init_button_material_component.system())
-            .add_system(action_button_on_press.system())
-            .add_system(change_material_for_state_system.system())
-            .add_system(change_text_for_button.system());
+            .add_system_to_stage(CoreStage::PreUpdate, press_button_from_input)
+            .add_system(init_button_material_component)
+            .add_system(action_button_on_press)
+            .add_system(change_material_for_state_system)
+            .add_system(change_text_for_button);
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub struct ButtonMaterials {
     normal: Handle<ColorMaterial>,
     hovered: Handle<ColorMaterial>,
@@ -47,9 +48,9 @@ impl ButtonMaterials {
     }
 }
 
-impl FromResources for ButtonMaterials {
-    fn from_resources(resources: &Resources) -> Self {
-        let mut materials = resources.get_mut::<Assets<ColorMaterial>>().unwrap();
+impl FromWorld for ButtonMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         ButtonMaterials::from_colors(
             &mut *materials,
             Color::rgb(0.15, 0.15, 0.15),
@@ -59,13 +60,16 @@ impl FromResources for ButtonMaterials {
     }
 }
 
+#[derive(Component)]
 pub struct ButtonSpawner {
     font: Handle<Font>,
 }
 
-impl FromResources for ButtonSpawner {
-    fn from_resources(resources: &Resources) -> Self {
-        let asset_server = resources.get::<AssetServer>().unwrap();
+// impl Resource for ButtonSpawner {}
+
+impl FromWorld for ButtonSpawner {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
         ButtonSpawner { font: font }
     }
@@ -75,11 +79,11 @@ fn change_material_for_state_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
         (&Interaction, &mut Handle<ColorMaterial>),
-        (Mutated<Interaction>, With<Button>, Without<ButtonMaterials>),
+        (Changed<Interaction>, With<Button>, Without<ButtonMaterials>),
     >,
     mut interaction_query_materials: Query<
         (&Interaction, &mut Handle<ColorMaterial>, &ButtonMaterials),
-        (Mutated<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>),
     >,
 ) {
     for (interaction, mut material) in interaction_query.iter_mut() {
@@ -126,20 +130,20 @@ fn change_text_for_button(
     for (comb, children) in query.iter() {
         for child in children.iter() {
             if let Ok(mut text) = query_text.get_mut(*child) {
-                let pos = text
+                let pos = text.sections[0]
                     .value
                     .char_indices()
                     .find(|(_i, c)| c == &':')
                     .map(|(i, _c)| i);
                 if let Some(pos) = pos {
-                    text.value.truncate(pos);
+                    text.sections[0].value.truncate(pos);
                 }
                 let new_string = match comb.want_combination {
                     true => comb.to_string(),
                     false => "N/A".to_string(),
                 };
-                text.value.push_str(": ");
-                text.value.push_str(&new_string);
+                text.sections[0].value.push_str(": ");
+                text.sections[0].value.push_str(&new_string);
             }
         }
     }
@@ -174,12 +178,13 @@ impl ButtonSpawner {
         commands: &mut Commands,
         text: String,
         custom_material: Option<ButtonMaterials>,
+        with_button: impl FnOnce(&mut EntityCommands)
     ) {
-        commands.spawn(ButtonBundle {
+        let mut entity = commands.spawn_bundle(ButtonBundle {
             style: Style {
                 size: Size::new(Val::Px(250.0), Val::Px(65.0)),
                 // center button
-                margin: Rect {
+                margin: UiRect {
                     left: Val::Px(10.0),
                     right: Val::Px(10.0),
                     ..Default::default()
@@ -195,23 +200,24 @@ impl ButtonSpawner {
             ..Default::default()
         });
         if let Some(mat) = custom_material {
-            commands.with(mat);
+            entity.insert(mat);
         }
-        commands.with(CombinationInput::new(true));
-        commands.with_children(|parent| {
-            parent.spawn(TextBundle {
-                text: Text {
-                    value: text,
-                    font: self.font.clone(),
-                    style: TextStyle {
+        entity.insert(CombinationInput::new(true));
+        entity.with_children(|parent| {
+            parent.spawn_bundle(TextBundle {
+                text: Text::from_section(
+                    text,
+                    TextStyle {
+                        font: self.font.clone(),
                         font_size: 40.0,
                         color: Color::rgb(0.9, 0.9, 0.9),
                         ..Default::default()
                     },
-                },
+                ),
                 ..Default::default()
             });
         });
+        with_button(&mut entity);
     }
 }
 
@@ -264,11 +270,11 @@ mod test {
         App::build()
             .add_plugin(Test::Frames(2))
             .add_plugin(ButtonPlugin)
-            .add_startup_system(init_cameras_ui.system())
+            .add_startup_system(init_cameras_ui)
             .add_startup_system(IntoSystem::<_, _>::system(create_n_buttons(
                 button_number as i32,
             )))
-            .add_system(Box::new(assert_6_buttons).system())
+            .add_system(Box::new(assert_6_buttons))
             .run()
     }
 }
