@@ -89,13 +89,13 @@ pub mod tests {
     #[test]
     #[serial]
     fn empty_test_app_with_frames() {
-        App::build().add_plugin(Test::Frames(5)).run();
+        App::new().add_plugin(Test::Frames(5)).run();
     }
 
     #[test]
     #[serial]
     fn empty_test_app_with_times() {
-        App::build().add_plugin(Test::Time(0.5)).run();
+        App::new().add_plugin(Test::Time(0.5)).run();
     }
 
     #[derive(Clone)]
@@ -109,11 +109,16 @@ pub mod tests {
         #[allow(dead_code)]
         pub fn debug(self) -> Self { Self::NoStop }
 
-        fn system(&self) -> Option<impl System<In = (), Out = ()>> {
+        fn add_system(&self, app: &mut App) {
             match self.clone() {
-                Self::Frames(count) => Some(IntoSystem::system(Box::new(move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e)))),
-                Self::Time(time) => Some(Box::new(move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e))),
-                Self::NoStop => None,
+                Self::Frames(count) => {
+                    app.add_system_to_stage(CoreStage::Last, move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e));
+                }
+                Self::Time(time) => {
+
+                    app.add_system_to_stage(CoreStage::Last, move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e));
+                }
+                Self::NoStop => {},
             }
         }
 
@@ -138,15 +143,13 @@ pub mod tests {
     }
 
     impl Plugin for Test {
-        fn build(&self, app: &mut AppBuilder) {
+        fn build(&self, app: &mut App) {
             app.add_plugins(NoLogPlugins);
-            app.set_runner(winit_runner_any_thread);
-            app.add_resource(WinitConfig {
+            app.insert_resource(WinitSettings {
                 return_from_run: true,
+                ..Default::default()
             });
-            if let Some(system) = self {
-                app.add_system_to_stage(stage::POST_UPDATE, system);
-            }
+            self.add_system(app);
         }
     }
 
@@ -210,23 +213,36 @@ pub mod tests {
     struct NoLogPlugins;
     impl PluginGroup for NoLogPlugins {
         fn build(&mut self, group: &mut PluginGroupBuilder) {
-            group.add(bevy::reflect::ReflectPlugin::default());
             group.add(bevy::core::CorePlugin::default());
+            group.add(bevy::time::TimePlugin::default());
             group.add(bevy::transform::TransformPlugin::default());
+            group.add(bevy::hierarchy::HierarchyPlugin::default());
             group.add(bevy::diagnostic::DiagnosticsPlugin::default());
             group.add(bevy::input::InputPlugin::default());
             group.add(bevy::window::WindowPlugin::default());
+
             group.add(bevy::asset::AssetPlugin::default());
+
             group.add(bevy::scene::ScenePlugin::default());
-            group.add(bevy::render::RenderPlugin::default());
-            group.add(bevy::sprite::SpritePlugin::default());
-            group.add(bevy::pbr::PbrPlugin::default());
-            group.add(bevy::ui::UiPlugin::default());
-            group.add(bevy::text::TextPlugin::default());
-            group.add(bevy::audio::AudioPlugin::default());
-            group.add(bevy::gltf::GltfPlugin::default());
+
             group.add(bevy::winit::WinitPlugin::default());
-            group.add(bevy::wgpu::WgpuPlugin::default());
+
+            group.add(bevy::render::RenderPlugin::default());
+            group.add(bevy::core_pipeline::CorePipelinePlugin::default());
+
+            group.add(bevy::sprite::SpritePlugin::default());
+            group.add(bevy::text::TextPlugin::default());
+            group.add(bevy::ui::UiPlugin::default());
+
+            group.add(bevy::pbr::PbrPlugin::default());
+
+            group.add(bevy::gltf::GltfPlugin::default());
+
+            group.add(bevy::audio::AudioPlugin::default());
+
+            group.add(bevy::gilrs::GilrsPlugin::default());
+
+            group.add(bevy::animation::AnimationPlugin::default());
         }
     }
 }

@@ -512,7 +512,6 @@ pub fn update_attacking_ai(
     }
 }
 
-pub type SpawnUnitRes<'a> = (Commands<'a, 'a>, Res<'a, AssetServer>, ResMut<'a, Grid>, ResMut<'a, Assets<TextureAtlas>>);
 
 pub fn spawn_unit<'a, G, TA>(
     commands: &'a mut Commands,
@@ -589,30 +588,32 @@ mod tests {
     #[serial]
     fn move_on_force_ally_wont_go_on_enemy() {
         fn init(
-            commands: &mut Commands,
+            mut commands: Commands,
             asset_server: ResMut<AssetServer>,
             mut grid: ResMut<Grid>,
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_enemy(1, 0);
             spawn_unit(
-                commands,
+                &mut commands,
                 &asset_server,
                 &mut grid,
                 &mut texture_atlases,
                 0,
                 0,
                 true,
+                |c| {
+            c.insert(MoveOnForceAI::default());
+                }
             )
-            .with(MoveOnForceAI::default());
         }
-        App::build()
+        App::new()
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
-            .add_resource(Grid::new(2, 1))
+            .insert_resource(Grid::new(2, 1))
             .add_startup_system(init)
             .add_system(assert_stay_on_0_0)
             .run();
@@ -622,68 +623,76 @@ mod tests {
     #[serial]
     fn move_on_force_enemy_wont_go_on_ally() {
         fn init(
-            commands: &mut Commands,
+            mut commands: Commands,
             asset_server: ResMut<AssetServer>,
             mut grid: ResMut<Grid>,
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             grid.add_friend(0, 1);
             spawn_unit(
-                commands,
+                &mut commands,
                 &asset_server,
                 &mut grid,
                 &mut texture_atlases,
                 0,
                 0,
                 false,
+                |c| {
+            c.insert(MoveOnForceAI::default());
+                }
             )
-            .with(MoveOnForceAI::default());
         }
-        App::build()
+        App::new()
             .add_plugin(Test::Frames(10))
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
-            .add_resource(Grid::new(2, 1))
+            .insert_resource(Grid::new(2, 1))
             .add_startup_system(init)
             .add_system(assert_stay_on_0_0)
             .run();
     }
 
+    
     #[test]
-    #[serial]
     #[ignore]
+    #[serial]
     fn battle_of_two_warriors() {
         fn init(
-            commands: &mut Commands,
+            mut commands: Commands,
             asset_server: Res<AssetServer>,
             mut grid: ResMut<Grid>,
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             spawn_unit(
-                commands,
+                &mut commands,
                 &asset_server,
                 &mut grid,
                 &mut texture_atlases,
                 0,
                 0,
                 true,
-            )
-            .with(AttackingAI)
-            .with(AttackingAIState::MoveToNearestEnemy);
+                |c| {
+                    c.insert(AttackingAI)
+                    .insert(AttackingAIState::MoveToNearestEnemy);
+                }
+            );
 
             spawn_unit(
-                commands,
+                &mut commands,
                 &asset_server,
                 &mut grid,
                 &mut texture_atlases,
                 3,
                 3,
                 false,
+                |c|
+                {
+                    c.insert(AttackingAI)
+                    .insert(AttackingAIState::MoveToNearestEnemy);
+                }
             )
-            .with(AttackingAI)
-            .with(AttackingAIState::MoveToNearestEnemy);
         }
 
         fn check_unit_count(mut flag: ResMut<TestCheck<bool>>, query: Query<&UnitState>) {
@@ -696,14 +705,14 @@ mod tests {
             }
         }
 
-        App::build()
+        App::new()
             .add_plugin(Test::Time(15.0))
             .add_plugin(GridPlugin)
             .add_plugin(FxPlugin)
             .add_plugin(UnitPlugin)
             .add_system(init_cameras_2d)
-            .add_resource(Grid::new(4, 4))
-            .add_resource(TestCheck::new(false).is_true())
+            .insert_resource(Grid::new(4, 4))
+            .insert_resource(TestCheck::new(false).is_true())
             .add_startup_system(init)
             .add_system(check_unit_count)
             .run();
@@ -713,26 +722,28 @@ mod tests {
     #[serial]
     fn dead_unit_are_removed_from_grid() {
         fn init(
-            commands: &mut Commands,
+            mut commands: Commands,
             asset_server: Res<AssetServer>,
             mut grid: ResMut<Grid>,
             mut texture_atlases: ResMut<Assets<TextureAtlas>>,
         ) {
             spawn_unit(
-                commands,
+                &mut commands,
                 &asset_server,
                 &mut grid,
                 &mut texture_atlases,
                 0,
                 0,
                 true,
+                |c| {
+                    c.insert(AttackingAI)
+                    .insert(AttackingAIState::MoveToNearestEnemy)
+                    .insert(UnitStats {
+                        life: 0,
+                        ..Default::default()
+                    });
+                }
             )
-            .with(AttackingAI)
-            .with(AttackingAIState::MoveToNearestEnemy)
-            .with(UnitStats {
-                life: 0,
-                ..Default::default()
-            });
         }
 
         fn check_grid_when_no_unit(grid: Res<Grid>, units: Query<&UnitStats>) {
@@ -752,17 +763,17 @@ mod tests {
             }
         }
 
-        App::build()
+        App::new()
             .add_plugin(Test::Frames(3))
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_plugin(FxPlugin)
             .add_system(init_cameras_2d)
-            .add_resource(Grid::new(4, 4))
-            .add_resource(TestCheck::new(false).is_true())
+            .insert_resource(Grid::new(4, 4))
+            .insert_resource(TestCheck::new(false).is_true())
             .add_startup_system(init)
-            .add_system_to_stage(stage::POST_UPDATE, check_grid_when_no_unit)
-            .add_system_to_stage(stage::POST_UPDATE, expect_0_unit)
+            .add_system_to_stage(CoreStage::PostUpdate, check_grid_when_no_unit)
+            .add_system_to_stage(CoreStage::PostUpdate, expect_0_unit)
             .run();
     }
 }

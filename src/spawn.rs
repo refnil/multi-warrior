@@ -96,8 +96,8 @@ mod tests {
 
     mod spawn_something {
         use super::*;
-        fn setup_scene(commands: &mut Commands) {
-            commands.spawn((
+        fn setup_scene(mut commands: Commands) {
+            commands.spawn().insert_bundle((
                 SpawnInfo {
                     ally: true,
                     last_spawn: 0.0,
@@ -116,17 +116,17 @@ mod tests {
         #[test]
         #[serial]
         fn spawn_something() {
-            App::build()
+            App::new()
                 .add_plugin(Test::Time(1.5))
                 .add_plugin(GridPlugin)
                 .add_plugin(UnitPlugin)
                 .add_plugin(AnimPlugin)
             .add_plugin(FxPlugin)
                 .add_plugin(SpawnPlugin)
-                .add_resource(Grid::new(3, 3))
+                .insert_resource(Grid::new(3, 3))
                 .add_startup_system(init_cameras_2d)
                 .add_startup_system(setup_scene)
-                .add_resource(TestCheck::new(0 as usize).test(|i| i > &1))
+                .insert_resource(TestCheck::new(0 as usize).test(|i| i > &1))
                 .add_system(check_for_spawn)
                 .run();
         }
@@ -146,10 +146,8 @@ mod tests {
     }
 
     fn battle_of_two_spawners(test: Test, size: i32, delay: f32, units: u32) {
-        let setup_scene = move |commands: &mut Commands| {
-            commands
-                .spawn((
-                    SpawnInfo {
+        let setup_scene = move |mut commands: Commands| {
+            commands.spawn().insert_bundle( (SpawnInfo {
                         ally: true,
                         last_spawn: f32::MIN,
                         spawn_delay: Some(delay),
@@ -159,9 +157,9 @@ mod tests {
                     },
                     AttackingAI,
                 ))
-                .with(AttackingAIState::MoveToNearestEnemy);
+                .insert(AttackingAIState::MoveToNearestEnemy);
             commands
-                .spawn((
+                .spawn().insert_bundle((
                     SpawnInfo {
                         ally: false,
                         last_spawn: f32::MIN,
@@ -172,18 +170,18 @@ mod tests {
                     },
                     AttackingAI,
                 ))
-                .with(AttackingAIState::MoveToNearestEnemy);
+                .insert(AttackingAIState::MoveToNearestEnemy);
         };
 
-        App::build()
+        App::new()
             .add_plugin(test)
             .add_plugin(GridPlugin)
             .add_plugin(UnitPlugin)
             .add_plugin(AnimPlugin)
             .add_plugin(SpawnPlugin)
             .add_plugin(FxPlugin)
-            .add_resource(Grid::new(size, size))
-            .add_resource(TestCheck::<usize>::new(0).test(move |v| *v >= units as usize * 2))
+            .insert_resource(Grid::new(size, size))
+            .insert_resource(TestCheck::<usize>::new(0).test(move |v| *v >= units as usize * 2))
             .add_startup_system(init_cameras_2d)
             .add_startup_system(Box::new(setup_scene))
             .add_system(total_unit)
