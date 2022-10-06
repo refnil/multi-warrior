@@ -1,5 +1,5 @@
-use bevy::ecs::system::Query;
 use bevy::ecs::query::WorldQuery;
+use bevy::ecs::system::Query;
 
 pub use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -18,7 +18,6 @@ pub fn count_query_filter<Q: WorldQuery, F: WorldQuery>(mut query: Query<Q, F>) 
 pub fn count_query<Q: WorldQuery>(query: Query<Q>) {
     count_query_filter::<Q, ()>(query);
 }
-
 
 #[derive(Debug, Copy, Clone, EnumIter)]
 pub enum Direction {
@@ -107,18 +106,27 @@ pub mod tests {
 
     impl Test {
         #[allow(dead_code)]
-        pub fn debug(self) -> Self { Self::NoStop }
+        pub fn debug(self) -> Self {
+            Self::NoStop
+        }
 
         fn add_system(&self, app: &mut App) {
             match self.clone() {
                 Self::Frames(count) => {
-                    app.add_system_to_stage(CoreStage::Last, move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e));
+                    app.add_system_to_stage(
+                        CoreStage::Last,
+                        move |c: Local<i32>, e: ResMut<Events<AppExit>>| Self::frames(count, c, e),
+                    );
                 }
                 Self::Time(time) => {
-
-                    app.add_system_to_stage(CoreStage::Last, move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| Self::times(time, c, t, e));
+                    app.add_system_to_stage(
+                        CoreStage::Last,
+                        move |c: Local<f32>, t: Res<Time>, e: ResMut<Events<AppExit>>| {
+                            Self::times(time, c, t, e)
+                        },
+                    );
                 }
-                Self::NoStop => {},
+                Self::NoStop => {}
             }
         }
 
@@ -169,7 +177,8 @@ pub mod tests {
         }
 
         pub fn test<Func>(mut self, f: Func) -> Self
-        where Func: FnOnce(&T) -> bool + Send + 'static + Sync
+        where
+            Func: FnOnce(&T) -> bool + Send + 'static + Sync,
         {
             self.test.push(Box::new(f));
             self

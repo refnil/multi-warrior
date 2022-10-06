@@ -7,22 +7,22 @@ mod anim;
 mod button;
 mod camera;
 mod fps;
+mod fx;
 mod grid;
 mod input;
 mod spawn;
 mod unit;
 mod utils;
-mod fx;
 
 use anim::*;
 use button::*;
 use camera::*;
 use fps::FPSPlugin;
+use fx::FxPlugin;
 use grid::*;
 use input::InputPlugin;
 use unit::*;
 use utils::Direction;
-use fx::FxPlugin;
 
 pub struct Game;
 
@@ -62,13 +62,14 @@ fn init_stuff(
             i,
             i,
             false,
-        |c| { c.insert(MoveOnForceAI {
-            target_x: (i ^ 2) % 10,
-            target_y: (i ^ 3) % 10,
-            //stick_to_target: true,
-            ..Default::default()
-        });
-        }
+            |c| {
+                c.insert(MoveOnForceAI {
+                    target_x: (i ^ 2) % 10,
+                    target_y: (i ^ 3) % 10,
+                    //stick_to_target: true,
+                    ..Default::default()
+                });
+            },
         )
     }
 }
@@ -127,27 +128,35 @@ mod tests {
                         ..Default::default()
                     },
                 }
-                .build(commands, |c| {c.insert(TurningAI);})
+                .build(commands, |c| {
+                    c.insert(TurningAI);
+                })
             }
         }
-        let unit = {
-            commands.spawn().id()
-        };
-        spawner.spawn_button(commands, "Left".to_string(), None, |c|{c.insert(StateSetter {
-            state: UnitState::Still(Direction::Left),
-            entity: unit,
-        });});
-        spawner.spawn_button(commands, "Right".to_string(), None, |c|{c.insert(StateSetter {
-            state: UnitState::Still(Direction::Right),
-            entity: unit,
-        });});
-        spawner.spawn_button(commands, "Down".to_string(), None, |c|{c.insert(StateSetter {
-            state: UnitState::Still(Direction::Down),
-            entity: unit,
-        });});
-        spawner.spawn_button(commands, "Up".to_string(), None, |c|{ c.insert(StateSetter {
-            state: UnitState::Still(Direction::Up),
-            entity: unit,
-        });});
+        let unit = { commands.spawn().id() };
+        spawner.spawn_button(commands, "Left".to_string(), None, |c| {
+            c.insert(StateSetter {
+                state: UnitState::Still(Direction::Left),
+                entity: unit,
+            });
+        });
+        spawner.spawn_button(commands, "Right".to_string(), None, |c| {
+            c.insert(StateSetter {
+                state: UnitState::Still(Direction::Right),
+                entity: unit,
+            });
+        });
+        spawner.spawn_button(commands, "Down".to_string(), None, |c| {
+            c.insert(StateSetter {
+                state: UnitState::Still(Direction::Down),
+                entity: unit,
+            });
+        });
+        spawner.spawn_button(commands, "Up".to_string(), None, |c| {
+            c.insert(StateSetter {
+                state: UnitState::Still(Direction::Up),
+                entity: unit,
+            });
+        });
     }
 }

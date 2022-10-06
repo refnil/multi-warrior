@@ -1,5 +1,5 @@
 use bevy::prelude::*;
- use bevy::utils::Duration;
+use bevy::utils::Duration;
 
 use crate::utils::Direction;
 
@@ -64,7 +64,6 @@ pub struct Animation {
     mode: AnimationMode,
     frames: Vec<usize>,
 }
-
 
 impl Animation {
     pub fn new(mode: AnimationMode, frames: Vec<usize>) -> Self {

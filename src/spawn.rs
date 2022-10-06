@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::ecs::system::EntityCommands;
+use bevy::prelude::*;
 
 use crate::grid::*;
 use crate::unit::*;
@@ -33,11 +33,26 @@ impl SpawnInfo {
             self.last_spawn + self.spawn_delay.unwrap_or(0.0) < time.seconds_since_startup() as f32;
         status && count && time
     }
-    pub fn spawn(&self, mut commands: &mut Commands, asset_server: &AssetServer, mut grid: &mut Grid, mut texture_atlas: &mut Assets<TextureAtlas>, with_spawn: impl FnOnce(&mut EntityCommands)) {
-        spawn_unit(&mut commands, &asset_server, &mut grid, &mut texture_atlas, self.x, self.y, self.ally, with_spawn);
+    pub fn spawn(
+        &self,
+        mut commands: &mut Commands,
+        asset_server: &AssetServer,
+        mut grid: &mut Grid,
+        mut texture_atlas: &mut Assets<TextureAtlas>,
+        with_spawn: impl FnOnce(&mut EntityCommands),
+    ) {
+        spawn_unit(
+            &mut commands,
+            &asset_server,
+            &mut grid,
+            &mut texture_atlas,
+            self.x,
+            self.y,
+            self.ally,
+            with_spawn,
+        );
     }
 }
-pub type SpawnUnitRes<'a> = (Commands<'a, 'a>, Res<'a, AssetServer>, ResMut<'a, Grid>, ResMut<'a, Assets<TextureAtlas>>);
 
 fn spawn_info_system(
     mut commands: Commands,
@@ -69,19 +84,24 @@ fn spawn_info_system(
         let count = if si.ally { good } else { bad };
         if si.want_spawn(&grid, &time, count) {
             si.last_spawn = time.seconds_since_startup() as f32;
-            si.spawn(&mut commands, &asset_server, &mut grid, &mut texture_atlas, |c|{
-
-            if query_of_ai.get_component::<TurningAI>(entity).is_ok() {
-                c.insert(TurningAI);
-            } else if query_of_ai.get_component::<MoveOnForceAI>(entity).is_ok() {
-                c.insert(MoveOnForceAI::default());
-            } else if query_of_ai.get_component::<AttackingAI>(entity).is_ok() {
-                c.insert(AttackingAI);
-                c.insert(AttackingAIState::MoveToNearestEnemy);
-            } else {
-                warn!("No ai found while spawning a new unit");
-            }
-            });
+            si.spawn(
+                &mut commands,
+                &asset_server,
+                &mut grid,
+                &mut texture_atlas,
+                |c| {
+                    if query_of_ai.get_component::<TurningAI>(entity).is_ok() {
+                        c.insert(TurningAI);
+                    } else if query_of_ai.get_component::<MoveOnForceAI>(entity).is_ok() {
+                        c.insert(MoveOnForceAI::default());
+                    } else if query_of_ai.get_component::<AttackingAI>(entity).is_ok() {
+                        c.insert(AttackingAI);
+                        c.insert(AttackingAIState::MoveToNearestEnemy);
+                    } else {
+                        warn!("No ai found while spawning a new unit");
+                    }
+                },
+            );
         }
     }
 }
@@ -91,8 +111,8 @@ mod tests {
     use super::*;
     use crate::anim::*;
     use crate::camera::*;
-    use crate::utils::tests::*;
     use crate::fx::*;
+    use crate::utils::tests::*;
 
     mod spawn_something {
         use super::*;
@@ -121,7 +141,7 @@ mod tests {
                 .add_plugin(GridPlugin)
                 .add_plugin(UnitPlugin)
                 .add_plugin(AnimPlugin)
-            .add_plugin(FxPlugin)
+                .add_plugin(FxPlugin)
                 .add_plugin(SpawnPlugin)
                 .insert_resource(Grid::new(3, 3))
                 .add_startup_system(init_cameras_2d)
@@ -147,7 +167,10 @@ mod tests {
 
     fn battle_of_two_spawners(test: Test, size: i32, delay: f32, units: u32) {
         let setup_scene = move |mut commands: Commands| {
-            commands.spawn().insert_bundle( (SpawnInfo {
+            commands
+                .spawn()
+                .insert_bundle((
+                    SpawnInfo {
                         ally: true,
                         last_spawn: f32::MIN,
                         spawn_delay: Some(delay),
@@ -159,7 +182,8 @@ mod tests {
                 ))
                 .insert(AttackingAIState::MoveToNearestEnemy);
             commands
-                .spawn().insert_bundle((
+                .spawn()
+                .insert_bundle((
                     SpawnInfo {
                         ally: false,
                         last_spawn: f32::MIN,

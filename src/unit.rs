@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::ecs::system::EntityCommands;
+use bevy::prelude::*;
 
 use rand::*;
 use std::ops::{Deref, DerefMut};
@@ -40,20 +40,24 @@ pub struct UnitBundle {
 }
 
 impl UnitBundle {
-    pub fn build(self, commands: &mut Commands, with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>)){
+    pub fn build(
+        self,
+        commands: &mut Commands,
+        with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>),
+    ) {
         with_unit(
-        commands
-            .spawn_bundle(self.spritesheet)
-            .insert(self.unit_info)
-            .insert(self.unit_state.get_animation())
-            .insert(self.unit_state)
-            .insert(UnitTime::default())
-            .insert(GridTransform {
-                x: -1000.0,
-                y: -1000.0,
-                update_scale: false,
-            })
-            .insert(self.unit_stats)
+            commands
+                .spawn_bundle(self.spritesheet)
+                .insert(self.unit_info)
+                .insert(self.unit_state.get_animation())
+                .insert(self.unit_state)
+                .insert(UnitTime::default())
+                .insert(GridTransform {
+                    x: -1000.0,
+                    y: -1000.0,
+                    update_scale: false,
+                })
+                .insert(self.unit_stats),
         );
     }
 }
@@ -97,10 +101,7 @@ fn remove_dead_unit(
     }
 }
 
-fn add_time_on_unit_info(
-    time: Res<Time>,
-    mut query: Query<&mut UnitTime>,
-) {
+fn add_time_on_unit_info(time: Res<Time>, mut query: Query<&mut UnitTime>) {
     let delta = time.delta_seconds();
     query.par_for_each_mut(64, |mut unit| {
         unit.time += delta;
@@ -512,7 +513,6 @@ pub fn update_attacking_ai(
     }
 }
 
-
 pub fn spawn_unit<'a, G, TA>(
     commands: &'a mut Commands,
     asset_server: &impl Deref<Target = AssetServer>,
@@ -521,9 +521,8 @@ pub fn spawn_unit<'a, G, TA>(
     x: i32,
     y: i32,
     ally: bool,
-    with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>)
-) 
-where
+    with_unit: impl FnOnce(&mut EntityCommands<'_, '_, '_>),
+) where
     G: Deref<Target = Grid> + DerefMut,
     TA: Deref<Target = Assets<TextureAtlas>> + DerefMut,
 {
@@ -603,8 +602,8 @@ mod tests {
                 0,
                 true,
                 |c| {
-            c.insert(MoveOnForceAI::default());
-                }
+                    c.insert(MoveOnForceAI::default());
+                },
             )
         }
         App::new()
@@ -638,8 +637,8 @@ mod tests {
                 0,
                 false,
                 |c| {
-            c.insert(MoveOnForceAI::default());
-                }
+                    c.insert(MoveOnForceAI::default());
+                },
             )
         }
         App::new()
@@ -654,7 +653,6 @@ mod tests {
             .run();
     }
 
-    
     #[test]
     #[ignore]
     #[serial]
@@ -675,8 +673,8 @@ mod tests {
                 true,
                 |c| {
                     c.insert(AttackingAI)
-                    .insert(AttackingAIState::MoveToNearestEnemy);
-                }
+                        .insert(AttackingAIState::MoveToNearestEnemy);
+                },
             );
 
             spawn_unit(
@@ -687,11 +685,10 @@ mod tests {
                 3,
                 3,
                 false,
-                |c|
-                {
+                |c| {
                     c.insert(AttackingAI)
-                    .insert(AttackingAIState::MoveToNearestEnemy);
-                }
+                        .insert(AttackingAIState::MoveToNearestEnemy);
+                },
             )
         }
 
@@ -737,12 +734,12 @@ mod tests {
                 true,
                 |c| {
                     c.insert(AttackingAI)
-                    .insert(AttackingAIState::MoveToNearestEnemy)
-                    .insert(UnitStats {
-                        life: 0,
-                        ..Default::default()
-                    });
-                }
+                        .insert(AttackingAIState::MoveToNearestEnemy)
+                        .insert(UnitStats {
+                            life: 0,
+                            ..Default::default()
+                        });
+                },
             )
         }
 

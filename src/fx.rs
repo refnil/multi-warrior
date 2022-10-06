@@ -8,10 +8,7 @@ impl Plugin for FxPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Events<FxSpawnEvent>>()
             .init_resource::<SpawnFXData>()
-            .add_system_to_stage(
-                CoreStage::PostUpdate,
-                Events::<FxSpawnEvent>::update_system,
-            )
+            .add_system_to_stage(CoreStage::PostUpdate, Events::<FxSpawnEvent>::update_system)
             .add_system(spawn_fx_system)
             .add_system(remove_finished_fx);
     }
@@ -38,7 +35,6 @@ struct SpawnFXData {
 
 impl FromWorld for SpawnFXData {
     fn from_world(world: &mut World) -> Self {
-
         let asset_server = world.get_resource::<AssetServer>().unwrap();
         let fire = asset_server.load("spritesheet/effects/MagicBarrier_64x64.png");
         let death = asset_server.load("spritesheet/effects/explosion.png");
@@ -67,7 +63,8 @@ fn spawn_fx_system(
         let texture_atlas = match event.kind {
             FxKind::Fire => &data.fire_handle,
             FxKind::Death => &data.death_handle,
-        }.clone();
+        }
+        .clone();
         let animation = match event.kind {
             FxKind::Fire => Animation::new(AnimationMode::Stop, (0..33).collect()),
             FxKind::Death => Animation::new(AnimationMode::Stop, (0..16).collect()),
@@ -84,7 +81,7 @@ fn spawn_fx_system(
             ..Default::default()
         });
         if let Some(duration) = event.duration {
-            bundle.insert(AnimTimer::new(duration/animation.frame_count()as f32));
+            bundle.insert(AnimTimer::new(duration / animation.frame_count() as f32));
         }
         bundle.insert(animation);
         bundle.insert(Fx);

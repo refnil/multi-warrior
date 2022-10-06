@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::ecs::system::EntityCommands;
+use bevy::prelude::*;
 
 use crate::input::*;
 
@@ -178,7 +178,7 @@ impl ButtonSpawner {
         commands: &mut Commands,
         text: String,
         custom_material: Option<ButtonMaterials>,
-        with_button: impl FnOnce(&mut EntityCommands)
+        with_button: impl FnOnce(&mut EntityCommands),
     ) {
         let mut entity = commands.spawn_bundle(ButtonBundle {
             style: Style {
@@ -248,7 +248,12 @@ mod test {
                 );
 
                 for i in 0..button_count {
-                    spawner.spawn_button(commands, format!("Coucou {}", i), Some(mat.clone()), |c|{});
+                    spawner.spawn_button(
+                        commands,
+                        format!("Coucou {}", i),
+                        Some(mat.clone()),
+                        |c| {},
+                    );
                     std::mem::swap(&mut mat, &mut mat2);
                 }
             },

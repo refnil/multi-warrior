@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::view::VisibleEntities;
 
 use crate::camera::*;
 
@@ -16,7 +15,6 @@ impl Plugin for GridPlugin {
             .add_system(update_grid_color);
     }
 }
-
 
 #[derive(Component)]
 pub struct GridRenderDebug {
@@ -89,10 +87,13 @@ impl FromWorld for GridRenderDebug {
 fn init_render_grid(mut commands: Commands, grid: Res<Grid>) {
     for x in 0..grid.x {
         for y in 0..grid.y {
-            commands.spawn_bundle(SpriteBundle {
-                // sprite: Sprite::new(Vec2::new(1.0, 1.0)),
-                ..Default::default()
-            }) .insert(GridRenderDebugNode).insert (GridTransform::on(x, y));
+            commands
+                .spawn_bundle(SpriteBundle {
+                    // sprite: Sprite::new(Vec2::new(1.0, 1.0)),
+                    ..Default::default()
+                })
+                .insert(GridRenderDebugNode)
+                .insert(GridTransform::on(x, y));
         }
     }
 }
